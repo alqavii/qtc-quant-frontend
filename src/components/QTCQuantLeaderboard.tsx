@@ -330,7 +330,7 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
                               <span className="inline-flex size-7 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10">
                                 {idx + 1}
                               </span>
-                              {idx === 0 && <span className="hidden sm:inline text-xs text-white/50">Top</span>}
+                              {/* removed Top label */}
                             </div>
                           </td>
                           <td className="px-4 py-4 align-middle">
@@ -339,14 +339,14 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
                                 <div className="size-8 rounded-xl bg-violet-500/20 ring-1 ring-violet-400/20" />
                                 <div className="absolute inset-0 -z-10 rounded-xl blur-xl bg-violet-700/20" />
                               </div>
-                              <div className="font-mono text-sm sm:text-base tracking-tight">
+                              <div className="font-mono text-sm sm:text-base tracking-tight text-white">
                                 {r.team_id}
                               </div>
                             </div>
                           </td>
                           <td className="px-4 py-4 align-middle text-right">
-                            <div className="inline-flex items-center justify-end gap-2 font-medium">
-                              <span className="tabular-nums">{formatUSD(r.portfolio_value)}</span>
+                            <div className="inline-flex items-center justify-end gap-2 font-medium text-white">
+                              <span className="tabular-nums text-white">{formatUSD(r.portfolio_value)}</span>
                               {typeof r.portfolio_value === "number" ? (
                                 <ArrowUpRight className="size-4 opacity-40" />
                               ) : (
