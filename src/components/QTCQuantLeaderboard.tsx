@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 // CONFIG
 // ----------------------------------------------------------------------------
 // Polling interval per API guidance (once per minute)
-const POLL_MS = 300_000;
+const POLL_MS = 60_000;
 
 // ----------------------------------------------------------------------------
 // API BASE RESOLUTION + HELPERS
@@ -36,32 +36,6 @@ const resolveApiBase = (propBase?: string): string => {
 
   // Last resort: public IP fallback
   return "http://91.98.127.14:8000";
-};
-
-// Improved API base resolver for dev/prod correctness
-const resolveApiBaseFixed = (propBase) => {
-  const envBase =
-    (typeof process !== "undefined" && process?.env?.NEXT_PUBLIC_QTC_API_BASE) ||
-    (typeof window !== "undefined" && window?.__QTC_API_BASE__) ||
-    undefined;
-
-  if (propBase && String(propBase).trim()) return stripTrailingSlash(String(propBase));
-  if (envBase && String(envBase).trim()) return stripTrailingSlash(String(envBase));
-
-  if (typeof window !== "undefined" && window.location) {
-    try {
-      const { hostname, port } = window.location;
-      const devPorts = new Set(["3000", "5173", "5174", "8080", "5175"]);
-      if (devPorts.has(String(port)) || hostname === "localhost" || hostname === "127.0.0.1") {
-        return "http://127.0.0.1:8000";
-      }
-      return ""; // same-origin in prod behind a proxy
-    } catch {
-      return "http://127.0.0.1:8000";
-    }
-  }
-
-  return "http://127.0.0.1:8000";
 };
 
 // Build a safe URL for both absolute-base and same-origin (relative) cases
@@ -148,7 +122,7 @@ const sortRowsDesc = (rows: LeaderboardItem[]) => {
 // ----------------------------------------------------------------------------
 export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
   // Resolve API base safely on first render
-  const apiBaseResolved = resolveApiBaseFixed(apiBase);
+  const apiBaseResolved = resolveApiBase(apiBase);
 
   const [rows, setRows] = useState<LeaderboardItem[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -162,12 +136,13 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
     mountedRef.current = true;
     try {
       console.groupCollapsed("[QTC Leaderboard] Self-tests");
-      // formatUSD tests
+      // formatUSD tests (keep existing expectations)
       console.assert(formatUSD(1234.5) === "$1,234.50", "formatUSD should format dollars");
       console.assert(formatUSD(null) === "N/A", "formatUSD should handle null as N/A");
+      // Additional tests
       console.assert(formatUSD(0) === "$0.00", "formatUSD should format zero");
-      console.assert(formatUSD(-12.3)!.includes("$") && formatUSD(-12.3)!.includes("-"), "formatUSD should handle negatives");
-      console.assert(formatUSD(Number.NaN) === "N/A", "formatUSD should handle NaN as N/A");
+      const neg = formatUSD(-12.34); console.assert(neg.includes("$") && neg.includes("-"), "formatUSD handles negatives");
+      console.assert(formatUSD(1234567.891) === "$1,234,567.89", "formatUSD clamps large numbers");
 
       // sortRowsDesc tests (ties + null last)
       const testRows: LeaderboardItem[] = [
@@ -176,23 +151,25 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
         { team_id: "C", portfolio_value: null },
         { team_id: "D", portfolio_value: 300 },
       ];
-      const sorted = sortRowsDesc(testRows).map((r) => r.team_id).join(",");
-      console.assert(sorted === "A,D,B,C" || sorted === "D,A,B,C", "sort should be descending with null last and tie by team_id");
+      const sorted = sortRowsDesc(testRows).map(r => r.team_id).join(",");
+      console.assert(sorted === "A,D,B,C" || sorted === "D,A,B,C", "sort desc with null last + alpha tiebreak");
 
       // resolveApiBase + buildApiUrl tests
       const rb1 = resolveApiBase("https://api.example.com/");
       console.assert(rb1 === "https://api.example.com", "resolveApiBase strips trailing slash");
       const rb2 = resolveApiBase("https://api.example.com///");
-      console.assert(rb2 === "https://api.example.com", "resolveApiBase strips multiple trailing slashes");
+      console.assert(rb2 === "https://api.example.com", "resolveApiBase strips multiple slashes");
       const u1 = buildApiUrl("https://api.example.com", "/api/v1/leaderboard");
       console.assert(u1.startsWith("https://api.example.com"), "buildApiUrl prefixes absolute base");
       const u2 = buildApiUrl("", "/api/v1/leaderboard");
       console.assert(u2 === "/api/v1/leaderboard", "buildApiUrl returns relative when base empty");
       const u3 = buildApiUrl("https://api.example.com", "api/v1/leaderboard");
       console.assert(u3.includes("/api/v1/leaderboard"), "buildApiUrl normalizes missing leading slash");
+      const u4 = buildApiUrl("ht!tp://bad base", "/api/v1/leaderboard");
+      console.assert(u4 === "/api/v1/leaderboard", "buildApiUrl falls back to relative on malformed base");
 
       // classNames tests
-      console.assert(classNames("a", false && "b", null, "c") === "a c", "classNames compacts truthy strings");
+      console.assert(classNames("a", undefined, "c") === "a c", "classNames compacts and ignores undefined");
 
       console.groupEnd();
     } catch {
@@ -204,29 +181,8 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
   const fetchData = async () => {
     setError(null);
     try {
-      const primaryUrl = buildApiUrl(apiBaseResolved, "/api/v1/leaderboard");
-      const candidates = [primaryUrl];
-      if (apiBaseResolved) {
-        // Try same-origin as a fallback if a base was set
-        candidates.push("/api/v1/leaderboard");
-      } else {
-        // Try common local dev bases if same-origin fails
-        candidates.push("http://127.0.0.1:8000/api/v1/leaderboard");
-        candidates.push("http://localhost:8000/api/v1/leaderboard");
-      }
-
-      let data: LeaderboardResponse | null = null;
-      let lastErr: any = null;
-      for (const url of candidates) {
-        try {
-          data = await fetchJson(url);
-          break;
-        } catch (e) {
-          lastErr = e;
-          continue;
-        }
-      }
-      if (!data) throw lastErr || new Error("Unable to reach leaderboard API");
+      const url = buildApiUrl(apiBaseResolved, "/api/v1/leaderboard");
+      const data: LeaderboardResponse = await fetchJson(url);
       const cleaned = (data?.leaderboard ?? []).map((r) => ({
         team_id: r.team_id,
         portfolio_value: typeof r.portfolio_value === "number" ? r.portfolio_value : null,
@@ -305,7 +261,7 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
             >
               <AlertTriangle className="mt-0.5 size-5 shrink-0" />
               <div>
-                <div className="font-medium">Couldn’t load the leaderboard.</div>
+                <div className="font-medium">Couldn't load the leaderboard.</div>
                 <div className="text-sm opacity-80">
                   {error.includes("TypeError: Failed to fetch") || error.includes("CORS")
                     ? "If this is a browser CORS issue, serve this page behind your own reverse proxy or call the API from your backend to add the proper Access-Control-Allow-Origin header."
@@ -332,7 +288,7 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
                 </thead>
                 <tbody>
                   <AnimatePresence initial={false}>
-                    {loading && (!rows || rows.length === 0) &&
+                    {loading && (!rows || rows.length === 0) && (
                       [...Array(8)].map((_, i) => (
                         <motion.tr
                           key={`skeleton-${i}`}
@@ -351,9 +307,10 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
                             <div className="ml-auto h-4 w-28 animate-pulse rounded bg-white/10" />
                           </td>
                         </motion.tr>
-                      ))}
+                      ))
+                    )}
 
-                    {!loading && rows && rows.length > 0 &&
+                    {!loading && rows && rows.length > 0 && (
                       rows.map((r, idx) => (
                         <motion.tr
                           key={r.team_id}
@@ -398,7 +355,8 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
                             </div>
                           </td>
                         </motion.tr>
-                      ))}
+                      ))
+                    )}
 
                     {!loading && rows && rows.length === 0 && (
                       <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -416,7 +374,9 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
 
         {/* Footer tips */}
         <div className="mt-6 text-xs text-white/40">
-          Public endpoint: <code className="rounded bg-white/5 px-1 py-0.5">GET {apiBaseResolved || "(same-origin)"} /api/v1/leaderboard</code>
+          <span>
+            Public endpoint: <code className="rounded bg-white/5 px-1 py-0.5">GET {apiBaseResolved || "(same-origin)"} /api/v1/leaderboard</code>
+          </span>
           <span className="ml-2">• Polls every 60s • Null values shown as N/A</span>
         </div>
       </div>

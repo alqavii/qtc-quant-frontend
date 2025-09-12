@@ -1,8 +1,5 @@
-'use client';
-
-import Leaderboard from '@/components/Leaderboard';
+import QTCQuantLeaderboard from "../components/QTCQuantLeaderboard";
 
 export default function Page() {
-  return <Leaderboard />;
+  return <QTCQuantLeaderboard />;
 }
-
