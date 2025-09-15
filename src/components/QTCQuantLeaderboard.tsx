@@ -16,7 +16,7 @@ const POLL_MS = 60_000;
 // API BASE RESOLUTION + HELPERS
 // ----------------------------------------------------------------------------
 
-// Safe resolution: prop > NEXT_PUBLIC var > window injected > same-origin (relative) > fallback IP
+// Safe resolution: prop > NEXT_PUBLIC var > window injected > same-origin (relative) > fallback public API
 const stripTrailingSlash = (s: string) => s.replace(/\/+$/, "");
 
 const resolveApiBase = (propBase?: string): string => {
@@ -34,8 +34,8 @@ const resolveApiBase = (propBase?: string): string => {
   // If we’re in a browser and same-origin API is desired, return empty to use relative paths
   if (typeof window !== "undefined" && (window as any).location) return "";
 
-  // Last resort: public IP fallback
-  return "http://91.98.127.14:8000";
+  // Last resort: public API fallback
+  return "https://api.qtcq.xyz";
 };
 
 // Build a safe URL for both absolute-base and same-origin (relative) cases
@@ -375,7 +375,7 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
         {/* Footer tips */}
         <div className="mt-6 text-xs text-white/40">
           <span>
-            Public endpoint: <code className="rounded bg-white/5 px-1 py-0.5">GET {apiBaseResolved || "(same-origin)"} /leaderboard</code>
+            Powered by QT Capital <code className="rounded bg-white/5 px-1 py-0.5">QTC-Alpha v1.0</code>
           </span>
           <span className="ml-2">• Polls every 60s • Null values shown as N/A</span>
         </div>
