@@ -159,14 +159,14 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
       console.assert(rb1 === "https://api.example.com", "resolveApiBase strips trailing slash");
       const rb2 = resolveApiBase("https://api.example.com///");
       console.assert(rb2 === "https://api.example.com", "resolveApiBase strips multiple slashes");
-      const u1 = buildApiUrl("https://api.example.com", "/api/v1/leaderboard");
+      const u1 = buildApiUrl("https://api.example.com", "/leaderboard");
       console.assert(u1.startsWith("https://api.example.com"), "buildApiUrl prefixes absolute base");
-      const u2 = buildApiUrl("", "/api/v1/leaderboard");
-      console.assert(u2 === "/api/v1/leaderboard", "buildApiUrl returns relative when base empty");
-      const u3 = buildApiUrl("https://api.example.com", "api/v1/leaderboard");
-      console.assert(u3.includes("/api/v1/leaderboard"), "buildApiUrl normalizes missing leading slash");
-      const u4 = buildApiUrl("ht!tp://bad base", "/api/v1/leaderboard");
-      console.assert(u4 === "/api/v1/leaderboard", "buildApiUrl falls back to relative on malformed base");
+      const u2 = buildApiUrl("", "/leaderboard");
+      console.assert(u2 === "/leaderboard", "buildApiUrl returns relative when base empty");
+      const u3 = buildApiUrl("https://api.example.com", "leaderboard");
+      console.assert(u3.includes("/leaderboard"), "buildApiUrl normalizes missing leading slash");
+      const u4 = buildApiUrl("ht!tp://bad base", "/leaderboard");
+      console.assert(u4 === "/leaderboard", "buildApiUrl falls back to relative on malformed base");
 
       // classNames tests
       console.assert(classNames("a", undefined, "c") === "a c", "classNames compacts and ignores undefined");
@@ -181,7 +181,7 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
   const fetchData = async () => {
     setError(null);
     try {
-      const url = buildApiUrl(apiBaseResolved, "/api/v1/leaderboard");
+      const url = buildApiUrl(apiBaseResolved, "/leaderboard");
       const data: LeaderboardResponse = await fetchJson(url);
       const cleaned = (data?.leaderboard ?? []).map((r) => ({
         team_id: r.team_id,
@@ -375,7 +375,7 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
         {/* Footer tips */}
         <div className="mt-6 text-xs text-white/40">
           <span>
-            Public endpoint: <code className="rounded bg-white/5 px-1 py-0.5">GET {apiBaseResolved || "(same-origin)"} /api/v1/leaderboard</code>
+            Public endpoint: <code className="rounded bg-white/5 px-1 py-0.5">GET {apiBaseResolved || "(same-origin)"} /leaderboard</code>
           </span>
           <span className="ml-2">• Polls every 60s • Null values shown as N/A</span>
         </div>
