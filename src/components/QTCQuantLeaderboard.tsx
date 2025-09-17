@@ -16,7 +16,7 @@ const POLL_MS = 60_000;
 // API BASE RESOLUTION + HELPERS
 // ----------------------------------------------------------------------------
 
-// Safe resolution: prop > NEXT_PUBLIC var > window injected > fallback public API
+// Safe resolution: prop > NEXT_PUBLIC var > window injected > same-origin (relative) > fallback public API
 const stripTrailingSlash = (s: string) => s.replace(/\/+$/, "");
 
 const resolveApiBase = (propBase?: string): string => {
@@ -31,17 +31,17 @@ const resolveApiBase = (propBase?: string): string => {
   // Use env/injected if provided
   if (envBase && String(envBase).trim()) return stripTrailingSlash(String(envBase));
 
-  // In browser, default to public API base to avoid CORS
-  if (typeof window !== "undefined" && (window as any).location) return "https://api.qtcq.xyz";
+  // If we’re in a browser and same-origin API is desired, return empty to use relative paths
+  if (typeof window !== "undefined" && (window as any).location) return "";
 
   // Last resort: public API fallback
   return "https://api.qtcq.xyz";
 };
 
-// Build a safe URL against the resolved base
+// Build a safe URL for both absolute-base and same-origin (relative) cases
 const buildApiUrl = (base: string, path: string): string => {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  // If base is empty, return relative path (fallback safety)
+  // Same-origin: return relative path
   if (!base) return cleanPath;
   try {
     return new URL(cleanPath, `${base}/`).toString();
@@ -393,4 +393,3 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
     </div>
   );
 }
-
