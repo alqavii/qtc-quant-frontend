@@ -237,7 +237,7 @@ export default function QTCQuantLeaderboard({ apiBase }: { apiBase?: string }) {
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
-                className="rounded-full border border-white/10 bg-white/5 backdrop-blur hover:bg-white/10"
+                className="rounded-full border border-white/10 bg-white/5 backdrop-blur transition-transform duration-150 hover:-translate-y-0.5 hover:bg-white/10 active:translate-y-[1px] active:scale-[0.96] active:bg-white/20 active:shadow-inner"
                 onClick={fetchData}
                 title="Refresh"
               >
