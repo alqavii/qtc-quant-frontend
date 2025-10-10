@@ -2,9 +2,10 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpRight, ArrowDownRight, RefreshCw, AlertTriangle, Trophy } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, RefreshCw, AlertTriangle, Trophy, Upload } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 // ----------------------------------------------------------------------------
 // CONFIG
@@ -157,6 +158,15 @@ export default function QTCQuantLeaderboard() {
               </span>
             </motion.h1>
             <div className="flex items-center gap-2">
+              <Link href="/submit">
+                <Button
+                  variant="ghost"
+                  className="rounded-full border border-violet-500/30 bg-violet-500/10 backdrop-blur transition-all duration-150 hover:-translate-y-0.5 hover:bg-violet-500/20 hover:border-violet-400/50 hover:shadow-lg hover:shadow-violet-500/20 text-white"
+                  title="Submit Strategy"
+                >
+                  <Upload className="mr-2 size-4" /> Submit Strategy
+                </Button>
+              </Link>
               <Button
                 variant="ghost"
                 className="rounded-full border border-white/10 bg-white/5 backdrop-blur transition-transform duration-150 hover:-translate-y-0.5 hover:bg-white/10 active:translate-y-[1px] active:scale-[0.96] active:bg-white/20 active:shadow-inner"
