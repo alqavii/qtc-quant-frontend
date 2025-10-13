@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 // ----------------------------------------------------------------------------
 // CONFIG
 // ----------------------------------------------------------------------------
-const API_URL = "https://api.qtcq.xyz/api/v1/strategy/submit";
+const API_BASE_URL = "https://api.qtcq.xyz";
 
 // Registered teams
 const TEAMS = [
@@ -29,7 +29,15 @@ const TEAMS = [
 interface SubmissionResponse {
   success: boolean;
   message: string;
-  strategy_id?: string;
+  team_id?: string;
+  files_uploaded?: string[];
+  file_count?: number;
+  path?: string;
+  note?: string;
+  validation?: {
+    all_files_validated: boolean;
+    security_checks_passed: boolean;
+  };
 }
 
 // ----------------------------------------------------------------------------
@@ -53,27 +61,27 @@ export default function StrategySubmission() {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.name.endsWith('.py')) {
+      if (file.name.endsWith('.py') || file.name.endsWith('.zip')) {
         setSelectedFile(file);
         setError(null);
         setSuccess(null);
       } else {
-        setError("Please select a Python (.py) file");
+        setError("Please select a Python (.py) or ZIP (.zip) file");
         setSelectedFile(null);
       }
     }
-  };
+  }; 
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const file = event.dataTransfer.files?.[0];
     if (file) {
-      if (file.name.endsWith('.py')) {
+      if (file.name.endsWith('.py') || file.name.endsWith('.zip')) {
         setSelectedFile(file);
         setError(null);
         setSuccess(null);
       } else {
-        setError("Please select a Python (.py) file");
+        setError("Please select a Python (.py) or ZIP (.zip) file");
         setSelectedFile(null);
       }
     }
@@ -103,12 +111,23 @@ export default function StrategySubmission() {
     setSuccess(null);
 
     try {
+      // Determine endpoint and form field based on file type
+      const isZipFile = selectedFile.name.endsWith('.zip');
+      const endpoint = isZipFile 
+        ? `${API_BASE_URL}/api/v1/team/${teamId}/upload-strategy-package`
+        : `${API_BASE_URL}/api/v1/team/${teamId}/upload-strategy`;
+      
       const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('team_id', teamId);
-      formData.append('api_key', apiKey);
+      formData.append('key', apiKey);
+      
+      // Use correct form field name based on file type
+      if (isZipFile) {
+        formData.append('strategy_zip', selectedFile);
+      } else {
+        formData.append('strategy_file', selectedFile);
+      }
 
-      const response = await fetch(API_URL, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
         mode: 'cors',
@@ -117,13 +136,24 @@ export default function StrategySubmission() {
       const data: SubmissionResponse = await response.json();
 
       if (response.ok && data.success) {
-        setSuccess(data.message || "Strategy submitted successfully!");
+        // Build success message with details
+        let successMsg = data.message || "Strategy submitted successfully!";
+        if (data.files_uploaded && data.files_uploaded.length > 0) {
+          successMsg += ` Files: ${data.files_uploaded.join(', ')}`;
+        }
+        if (data.note) {
+          successMsg += ` ${data.note}`;
+        }
+        
+        setSuccess(successMsg);
         setSelectedFile(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
       } else {
-        setError(data.message || "Failed to submit strategy");
+        // Handle error response - check for detail field
+        const errorMsg = (data as any).detail || data.message || "Failed to submit strategy";
+        setError(errorMsg);
       }
     } catch (e: any) {
       setError(e?.message || "Network error. Please try again.");
@@ -254,7 +284,7 @@ export default function StrategySubmission() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".py"
+                  accept=".py,.zip"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
@@ -277,13 +307,13 @@ export default function StrategySubmission() {
                     <>
                       <FileCode className="size-16 text-white/40 mb-4" />
                       <p className="text-lg font-medium text-white mb-2">
-                        Drop your Python file here
+                        Drop your strategy file here
                       </p>
                       <p className="text-sm text-white/60 mb-4">
                         or click to browse
                       </p>
                       <p className="text-xs text-white/50">
-                        Accepts .py files only
+                        Accepts .py (single file) or .zip (multi-file package)
                       </p>
                     </>
                   )}
@@ -294,8 +324,11 @@ export default function StrategySubmission() {
               <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/10">
                 <h3 className="text-sm font-semibold text-white mb-2">Requirements:</h3>
                 <ul className="text-xs text-white/70 space-y-1">
-                  <li>• Must implement required strategy interface</li>
-                  <li>• Follow QTC Alpha strategy guidelines</li>
+                  <li>• Single file: Upload strategy.py directly</li>
+                  <li>• Multi-file: ZIP package must contain strategy.py as entry point</li>
+                  <li>• Allowed imports: numpy, pandas, scipy, math, statistics</li>
+                  <li>• Security validation will be performed automatically</li>
+                  <li>• Strategy will be loaded on the next trading cycle</li>
                 </ul>
               </div>
             </CardContent>
