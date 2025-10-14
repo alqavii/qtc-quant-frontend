@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Upload, Key, FileCode, CheckCircle, AlertTriangle, Lock, Send } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button";
 // CONFIG
 // ----------------------------------------------------------------------------
 const API_BASE_URL = "https://api.qtcq.xyz";
+const LEADERBOARD_URL = "https://api.qtcq.xyz/leaderboard";
 
-// Registered teams
-const TEAMS = [
+// Fallback teams (in case API fetch fails)
+const FALLBACK_TEAMS = [
   "epsilon",
   "gamma",
   "delta",
@@ -56,7 +57,44 @@ export default function StrategySubmission() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [teams, setTeams] = useState<string[]>(FALLBACK_TEAMS);
+  const [isLoadingTeams, setIsLoadingTeams] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch teams from leaderboard API on mount
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const response = await fetch(LEADERBOARD_URL, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+          mode: 'cors',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.leaderboard && Array.isArray(data.leaderboard)) {
+            const teamIds = data.leaderboard
+              .map((item: { team_id: string }) => item.team_id)
+              .filter((id: string) => id && typeof id === 'string')
+              .sort();
+            
+            if (teamIds.length > 0) {
+              setTeams(teamIds);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch teams from leaderboard:', e);
+        // Keep using FALLBACK_TEAMS
+      } finally {
+        setIsLoadingTeams(false);
+      }
+    };
+
+    fetchTeams();
+  }, []);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -209,12 +247,13 @@ export default function StrategySubmission() {
                       id="teamId"
                       value={teamId}
                       onChange={(e) => setTeamId(e.target.value)}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      disabled={isLoadingTeams}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="" className="bg-[#0a0a14] text-white/60">
-                        Select your team
+                        {isLoadingTeams ? 'Loading teams...' : 'Select your team'}
                       </option>
-                      {TEAMS.map((team) => (
+                      {teams.map((team) => (
                         <option key={team} value={team} className="bg-[#0a0a14] text-white">
                           Team {team.charAt(0).toUpperCase() + team.slice(1)}
                         </option>
@@ -227,7 +266,9 @@ export default function StrategySubmission() {
                     </div>
                   </div>
                   <p className="mt-2 text-xs text-white/50">
-                    Select your registered team from the dropdown
+                    {isLoadingTeams 
+                      ? 'Loading available teams from the leaderboard...' 
+                      : `${teams.length} team${teams.length !== 1 ? 's' : ''} available`}
                   </p>
                 </div>
 
@@ -326,7 +367,7 @@ export default function StrategySubmission() {
                 <ul className="text-xs text-white/70 space-y-1">
                   <li>• Single file: Upload strategy.py directly</li>
                   <li>• Multi-file: ZIP package must contain strategy.py as entry point</li>
-                  <li>• Allowed imports: numpy, pandas, scipy, math, statistics</li>
+                  <li>• Allowed imports: numpy, pandas, scipy, math, statistics, decimal, collections, typing</li>
                   <li>• Security validation will be performed automatically</li>
                   <li>• Strategy will be loaded on the next trading cycle</li>
                 </ul>
