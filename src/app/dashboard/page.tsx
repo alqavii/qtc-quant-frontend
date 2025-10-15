@@ -6,6 +6,7 @@ import { Lock, Key, LogOut, Activity, TrendingUp, AlertTriangle, DollarSign } fr
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import TeamMetrics from "@/components/TeamMetrics";
+import TeamExecutionHealth from "@/components/TeamExecutionHealth";
 import PortfolioHistoryChart from "@/components/PortfolioHistoryChart";
 import PositionBreakdownChart from "@/components/PositionBreakdownChart";
 import TradesTable from "@/components/TradesTable";
@@ -299,6 +300,11 @@ export default function TeamDashboard() {
 
       {/* Dashboard Content */}
       <div className="mx-auto max-w-7xl px-3 py-4 space-y-4">
+        {/* Strategy Execution Health */}
+        <section>
+          <TeamExecutionHealth teamId={teamId} apiKey={apiKey} />
+        </section>
+
         {/* Performance Metrics */}
         <section>
           <div className="flex items-center gap-2 mb-2 border-b border-[#333333] pb-1">

@@ -5,6 +5,7 @@ import { Monitor, TrendingUp, Activity, Users, BarChart3 } from "lucide-react";
 import QTCQuantLeaderboard from "../components/QTCQuantLeaderboard";
 import TeamHistoricalChart from "../components/TeamHistoricalChart";
 import LeaderboardHistory from "../components/LeaderboardHistory";
+import SystemStatusBanner from "../components/SystemStatusBanner";
 import Link from "next/link";
 
 // ----------------------------------------------------------------------------
@@ -65,24 +66,8 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Market Status Bar */}
-      <div className="border-b border-[#333333] bg-[#0A0A0A] px-3 py-1">
-        <div className="flex items-center gap-6 text-[10px] uppercase tracking-wider">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-[#00C805] animate-pulse"></div>
-            <span className="text-[#808080]">MARKET:</span>
-            <span className="text-[#00C805] font-bold">LIVE</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[#808080]">UPDATE FREQ:</span>
-            <span className="text-[#CCCCCC]">60S</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[#808080]">DATA FEED:</span>
-            <span className="text-[#CCCCCC]">REAL-TIME</span>
-          </div>
-        </div>
-      </div>
+      {/* System Status Banner */}
+      <SystemStatusBanner />
 
       {/* Main MDI Grid Layout */}
       <div className="p-2 grid grid-cols-12 gap-2" style={{ height: 'calc(100vh - 96px)' }}>

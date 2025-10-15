@@ -107,7 +107,77 @@ Returns current rankings of all teams sorted by portfolio value.
 
 ---
 
-#### 2. Get Historical Data for All Teams
+#### 2. Get System Status ⭐ NEW
+**GET** `/api/v1/status`
+
+Returns system-wide health information including market status, orchestrator status, and data feed health. Essential for monitoring and status banners.
+
+**Authentication:** None required (public endpoint)
+
+**Parameters:** None
+
+**Example Request:**
+```
+GET /api/v1/status
+```
+
+**Response:**
+```json
+{
+  "status": "operational",
+  "timestamp": "2025-10-15T15:42:30+00:00",
+  "market": {
+    "is_open": true,
+    "status": "trading"
+  },
+  "orchestrator": {
+    "running": true,
+    "last_heartbeat": "2025-10-15T15:42:00+00:00",
+    "execution_frequency_seconds": 60,
+    "teams_loaded": 9,
+    "teams_active": 9,
+    "uptime_status": "healthy"
+  },
+  "data_feed": {
+    "last_update": "2025-10-15T15:42:00+00:00",
+    "seconds_since_update": 30,
+    "status": "healthy",
+    "symbols_tracked": 9,
+    "bars_received": 9
+  }
+}
+```
+
+**Response Fields:**
+- `status` - Overall system status: "operational", "degraded", "stopped", "starting"
+- `timestamp` - Current server time (ISO 8601 UTC)
+- `market.is_open` - Whether US equity market is currently open
+- `market.status` - "trading" or "closed"
+- `orchestrator.running` - Whether trading orchestrator is active
+- `orchestrator.last_heartbeat` - Last time orchestrator updated status
+- `orchestrator.execution_frequency_seconds` - How often strategies execute (60s)
+- `orchestrator.teams_loaded` - Total teams in system
+- `orchestrator.teams_active` - Teams currently executing (market hours)
+- `data_feed.status` - "healthy", "delayed", or "stale"
+- `data_feed.seconds_since_update` - Freshness indicator
+- `data_feed.symbols_tracked` - Number of symbols being monitored
+
+**Status Values:**
+- `operational` - All systems running normally
+- `degraded` - Running but data may be stale
+- `stopped` - Orchestrator not running
+- `starting` - System initializing
+
+**Use Cases:**
+- System health monitoring
+- Status banner in frontend ("🟢 Market Open | ✅ Trading Active")
+- Determine why strategies aren't trading (market closed vs system down)
+- Alerting and uptime monitoring
+- Troubleshooting
+
+---
+
+#### 3. Get Historical Data for All Teams
 **GET** `/api/v1/leaderboard/history`
 
 Returns time-series portfolio data for all teams (public endpoint).
@@ -616,7 +686,102 @@ GET /api/v1/team/epsilon/errors?key=YOUR_API_KEY&limit=20
 
 ---
 
-#### 12. Get Portfolio History with Positions ⭐ NEW
+#### 12. Get Team Execution Health ⭐ NEW
+**GET** `/api/v1/team/{team_id}/execution-health`
+
+Returns comprehensive execution health metrics for a team's strategy including success rate, timing performance, error counts, and timeout warnings. Critical for monitoring if your strategy is approaching the 5-second timeout limit.
+
+**Authentication:** Required (API key)
+
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `team_id` | string (path) | - | Team identifier |
+| `key` | string (query) | - | **Required** Team API key |
+
+**Example Request:**
+```
+GET /api/v1/team/admin/execution-health?key=YOUR_API_KEY
+```
+
+**Response:**
+```json
+{
+  "team_id": "admin",
+  "timestamp": "2025-10-15T15:45:00+00:00",
+  "strategy": {
+    "entry_point": "strategy:Strategy",
+    "repo_path": "/opt/qtc/external_strategies/admin",
+    "status": "active",
+    "last_uploaded": "2025-10-14T16:50:00+00:00",
+    "run_24_7": false
+  },
+  "execution": {
+    "is_active": true,
+    "last_execution": "2025-10-15T15:44:00+00:00",
+    "seconds_since_last": 35,
+    "total_executions_today": 157,
+    "successful_executions": 155,
+    "failed_executions": 2,
+    "success_rate_percentage": 98.73
+  },
+  "errors": {
+    "error_count": 1,
+    "timeout_count": 1,
+    "last_error": {
+      "timestamp": "2025-10-15T14:05:00+00:00",
+      "error_type": "TimeoutError",
+      "message": "Strategy execution exceeded 5 seconds",
+      "timeout": true
+    },
+    "consecutive_failures": 0
+  },
+  "performance": {
+    "avg_execution_time_ms": 125,
+    "approaching_timeout": false,
+    "timeout_risk": "low",
+    "timeout_limit_seconds": 5
+  },
+  "trading": {
+    "total_trades_today": 52,
+    "signal_rate_percentage": 33.12
+  }
+}
+```
+
+**Response Fields:**
+- `strategy.status` - "active", "idle", "error"
+- `strategy.last_uploaded` - When strategy file was last modified
+- `execution.is_active` - Currently executing (respects market hours)
+- `execution.success_rate_percentage` - % of successful executions
+- `errors.timeout_count` - How many times strategy hit 5s limit
+- `errors.last_error` - Most recent error details
+- `performance.avg_execution_time_ms` - Average strategy execution time
+- `performance.approaching_timeout` - Warning if nearing 5s limit
+- `performance.timeout_risk` - "low", "medium", "high" based on timeout count
+- `trading.signal_rate_percentage` - How often strategy generates trades
+
+**Strategy Status Values:**
+- `active` - Running and executing normally
+- `idle` - Loaded but not executing (outside market hours if run_24_7=false)
+- `error` - Failed to execute, check errors field
+
+**Timeout Risk Levels:**
+- `low` - No timeouts, healthy performance
+- `medium` - 1-3 timeouts, approaching limit
+- `high` - 4+ timeouts, optimization needed
+
+**Use Cases:**
+- Monitor if strategy is actively running
+- Check if approaching the 5-second timeout limit
+- Track execution success rate
+- Identify when strategy was last uploaded
+- Debug why strategy stopped trading
+- Monitor strategy health dashboard
+
+---
+
+#### 13. Get Portfolio History with Positions ⭐ NEW
 **GET** `/api/v1/team/{team_id}/portfolio-history`
 
 Returns complete portfolio snapshots including all position details over time. Unlike `/history` which only returns portfolio value, this endpoint includes all position data for each timestamp.
@@ -1702,11 +1867,13 @@ The API enforces rate limits to prevent abuse and ensure fair usage. Limits are 
 | `/api/v1/leaderboard/history` | GET | **10 per minute** | Expensive query (all teams) |
 | `/api/v1/leaderboard/metrics` | GET | **10 per minute** | Heavy computation |
 | `/api/v1/team/{team_id}/errors` | GET | **30 per minute** | Error tracking ⭐ NEW |
+| `/api/v1/team/{team_id}/execution-health` | GET | **60 per minute** | Execution monitoring ⭐ NEW |
 | `/api/v1/team/{team_id}/history` | GET | **30 per minute** | Moderate load |
 | `/api/v1/team/{team_id}/metrics` | GET | **30 per minute** | Moderate computation |
 | `/api/v1/team/{team_id}/trades` | GET | **30 per minute** | File reads |
 | `/api/v1/team/{team_id}/position/{symbol}/history` | GET | **30 per minute** | Symbol position tracking ⭐ NEW |
 | `/api/v1/team/{team_id}/positions/summary` | GET | **30 per minute** | Position statistics ⭐ NEW |
+| `/api/v1/status` | GET | **120 per minute** | System health check ⭐ NEW |
 | `/leaderboard` | GET | **60 per minute** | Simple read |
 | **All endpoints (default)** | ALL | **100 per minute** | Global safety net |
 
@@ -1731,9 +1898,11 @@ HTTP/1.1 429 Too Many Requests
 
 | Endpoint | Recommended Interval | Notes |
 |----------|---------------------|-------|
+| `/api/v1/status` | 30 seconds | System health monitoring ⭐ NEW |
 | `/leaderboard` | 60 seconds | Updates every minute during market hours |
 | `/api/v1/leaderboard/history` | 5-10 minutes | Historical data, changes slowly |
 | `/api/v1/team/{team_id}/history` | 60 seconds | Team-specific updates |
+| `/api/v1/team/{team_id}/execution-health` | 60 seconds | Monitor strategy health ⭐ NEW |
 | `/api/v1/team/{team_id}/portfolio-history` | 2-5 minutes | Full snapshots with positions ⭐ NEW |
 | `/api/v1/team/{team_id}/errors` | On-demand | Check when debugging issues ⭐ NEW |
 | `/api/v1/team/{team_id}/position/{symbol}/history` | 5 minutes | Symbol-specific tracking ⭐ NEW |
@@ -1870,6 +2039,7 @@ async function fetchTeamData(teamId, apiKey) {
 
 ### Public Endpoints (No Auth)
 ```
+GET  /api/v1/status                        # System health status ⭐ NEW
 GET  /leaderboard                          # Current rankings
 GET  /api/v1/leaderboard/history           # All teams historical data
 GET  /api/v1/leaderboard/metrics           # Leaderboard with performance metrics
@@ -1884,6 +2054,7 @@ GET  /{team_key}                           # Team status (plain text)
 GET  /api/v1/team/{team_id}/history        # Team historical data
 GET  /api/v1/team/{team_id}/trades         # Team trade history
 GET  /api/v1/team/{team_id}/metrics        # Team performance metrics
+GET  /api/v1/team/{team_id}/execution-health           # Execution health & timeout monitoring ⭐ NEW
 GET  /api/v1/team/{team_id}/errors         # Strategy execution errors ⭐ NEW
 GET  /api/v1/team/{team_id}/portfolio-history          # Full portfolio snapshots with positions ⭐ NEW
 GET  /api/v1/team/{team_id}/position/{symbol}/history  # Position history for specific symbol ⭐ NEW
@@ -1900,11 +2071,17 @@ POST /api/v1/team/{team_id}/upload-multiple-files      # Upload multiple files i
 ### Testing the API
 
 ```bash
+# Test system status
+curl http://localhost:8000/api/v1/status | jq
+
 # Test leaderboard
 curl http://localhost:8000/leaderboard | jq
 
 # Test team history (replace with your key)
 curl "http://localhost:8000/api/v1/team/test1/history?key=YOUR_KEY&days=7" | jq
+
+# Test execution health (NEW)
+curl "http://localhost:8000/api/v1/team/admin/execution-health?key=YOUR_KEY" | jq
 
 # Test error tracking (NEW)
 curl "http://localhost:8000/api/v1/team/epsilon/errors?key=YOUR_KEY&limit=10" | jq
