@@ -1,11 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { Trophy, RefreshCw, AlertTriangle, TrendingUp, Activity } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { RefreshCw, AlertTriangle } from "lucide-react";
 
 // ----------------------------------------------------------------------------
 // CONFIG
@@ -232,55 +229,51 @@ const calculateTeamMetrics = (teamId: string, history: HistoryPoint[]): Calculat
 // Metric configurations
 const METRICS = {
   sharpe_ratio: {
-    label: 'Sharpe Ratio',
-    description: 'Risk-adjusted return',
+    label: 'SHARPE',
+    description: 'RISK-ADJ RETURN',
     format: (v: number | null) => formatNumber(v, 2),
-    icon: TrendingUp,
     betterHigher: true,
   },
   sortino_ratio: {
-    label: 'Sortino Ratio',
-    description: 'Downside risk-adjusted return',
+    label: 'SORTINO',
+    description: 'DOWNSIDE RISK-ADJ',
     format: (v: number | null) => formatNumber(v, 2),
-    icon: Activity,
     betterHigher: true,
   },
   calmar_ratio: {
-    label: 'Calmar Ratio',
-    description: 'Return vs max drawdown',
+    label: 'CALMAR',
+    description: 'RETURN VS DRAWDOWN',
     format: (v: number | null) => formatNumber(v, 2),
-    icon: Trophy,
     betterHigher: true,
   },
   max_drawdown: {
-    label: 'Max Drawdown',
-    description: 'Largest peak-to-trough decline',
+    label: 'MAX DD',
+    description: 'PEAK TO TROUGH',
     format: (v: number | null) => v !== null ? `${formatNumber(v, 2)}%` : 'N/A',
-    icon: AlertTriangle,
     betterHigher: false, // lower (closer to 0) is better
   },
   total_return: {
-    label: 'Total Return',
-    description: 'Overall return percentage',
+    label: 'RETURN',
+    description: 'TOTAL RETURN %',
     format: (v: number | null) => v !== null ? `${formatNumber(v, 2)}%` : 'N/A',
-    icon: TrendingUp,
     betterHigher: true,
   },
 };
 
-// Color gradient for bars
-const getBarColor = (rank: number, total: number) => {
-  const colors = [
-    "#8b5cf6", // violet
-    "#ec4899", // pink
-    "#06b6d4", // cyan
-    "#f59e0b", // amber
-    "#10b981", // emerald
-    "#6366f1", // indigo
-    "#f43f5e", // rose
-    "#14b8a6", // teal
-  ];
-  return colors[rank % colors.length];
+// Terminal color gradient for bars - functional, not decorative
+const getBarColor = (value: number, metric: MetricType) => {
+  if (metric === 'max_drawdown') {
+    // For drawdown, more negative is worse
+    if (value > 20) return "#FF0000"; // red - bad
+    if (value > 10) return "#FFAA00"; // amber - warning
+    return "#00C805"; // green - good
+  }
+  
+  // For other metrics, higher is better
+  if (value < 0) return "#FF0000"; // red - negative
+  if (value < 0.5) return "#808080"; // gray - weak
+  if (value < 1.0) return "#FFAA00"; // amber - moderate
+  return "#00C805"; // green - good
 };
 
 // ----------------------------------------------------------------------------
@@ -380,190 +373,146 @@ export default function LeaderboardHistory() {
         team_id: team.team_id,
         value: value,
         rank: idx + 1,
-        color: getBarColor(idx, sorted.length),
+        color: getBarColor(value, selectedMetric),
       };
     });
   }, [data, selectedMetric]);
 
-  const bodyBg = "bg-[#0a0a14]";
-  const cardBg = "border-white/10 bg-white/[0.03] backdrop-blur-sm";
   const currentMetric = METRICS[selectedMetric];
 
   return (
-    <div className={classNames("w-full text-white py-8", bodyBg)}>
-      <div className="mx-auto max-w-7xl px-4">
-        {/* Header */}
-        <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3"
-          >
-            <div className="rounded-xl bg-amber-500/20 p-3 ring-1 ring-amber-400/20">
-              <Trophy className="size-6 text-amber-400" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-white">Performance Rankings</h2>
-              <p className="text-sm text-white/60 mt-1">Compare teams by different performance metrics</p>
-            </div>
-          </motion.div>
-
-          <div className="flex items-center gap-2">
-            {/* Time period selector */}
-            <div className="flex gap-1 rounded-lg bg-white/5 p-1">
-              {[1, 7, 30].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDays(d)}
-                  className={classNames(
-                    "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
-                    days === d
-                      ? "bg-amber-500/80 text-white shadow-lg"
-                      : "text-white/60 hover:text-white hover:bg-white/10"
-                  )}
-                >
-                  {d === 1 ? '1 Day' : `${d} Days`}
-                </button>
-              ))}
-            </div>
-
-            <Button
-              variant="ghost"
-              className="rounded-full border border-white/10 bg-white/5 backdrop-blur transition-transform duration-150 hover:-translate-y-0.5 hover:bg-white/10"
-              onClick={fetchData}
-              title="Refresh"
+    <div className="w-full h-full bg-[#000000] text-[#CCCCCC] flex flex-col">
+      {/* Control Bar */}
+      <div className="border-b border-[#333333] bg-[#0A0A0A] px-2 py-1 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          {/* Metric Selector - Compact */}
+          {(Object.keys(METRICS) as MetricType[]).map((metric) => (
+            <button
+              key={metric}
+              onClick={() => setSelectedMetric(metric)}
+              className={classNames(
+                "border text-[10px] uppercase tracking-wider px-2 py-1 font-mono transition-colors",
+                selectedMetric === metric
+                  ? "border-[#00A0E8] bg-[#00A0E8] text-[#000000]"
+                  : "border-[#333333] bg-[#0A0A0A] text-[#808080] hover:bg-[#1A1A1A] hover:text-[#CCCCCC]"
+              )}
             >
-              <RefreshCw className="size-4" />
-            </Button>
-          </div>
+              {METRICS[metric].label}
+            </button>
+          ))}
         </div>
-
-        {/* Metric Selector */}
-        <div className="mb-6">
-          <div className="flex flex-wrap gap-2">
-            {(Object.keys(METRICS) as MetricType[]).map((metric) => {
-              const MetricIcon = METRICS[metric].icon;
-              return (
-                <button
-                  key={metric}
-                  onClick={() => setSelectedMetric(metric)}
-                  className={classNames(
-                    "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all",
-                    selectedMetric === metric
-                      ? "bg-violet-500/90 text-white shadow-lg ring-2 ring-violet-400/50"
-                      : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
-                  )}
-                >
-                  <MetricIcon className="size-4" />
-                  <div className="text-left">
-                    <div className="text-sm font-semibold">{METRICS[metric].label}</div>
-                    {selectedMetric === metric && (
-                      <div className="text-xs opacity-80">{METRICS[metric].description}</div>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
+        
+        <div className="flex items-center gap-2">
+          {/* Time period selector */}
+          <div className="flex items-center gap-1">
+            {[1, 7, 30].map((d) => (
+              <button
+                key={d}
+                onClick={() => setDays(d)}
+                className={classNames(
+                  "border text-[10px] uppercase tracking-wider px-2 py-1 font-mono transition-colors",
+                  days === d
+                    ? "border-[#FFAA00] bg-[#FFAA00] text-[#000000]"
+                    : "border-[#333333] bg-[#0A0A0A] text-[#808080] hover:bg-[#1A1A1A] hover:text-[#CCCCCC]"
+                )}
+              >
+                {d}D
+              </button>
+            ))}
           </div>
-        </div>
-
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-400/10 p-4 text-amber-200"
+          
+          {lastUpdated && (
+            <span className="text-[10px] text-[#808080] uppercase tracking-wider font-mono">
+              {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          )}
+          
+          <button
+            onClick={fetchData}
+            className="border border-[#333333] bg-[#0A0A0A] hover:bg-[#1A1A1A] p-1 transition-colors"
+            title="Refresh"
           >
-            <AlertTriangle className="mt-0.5 size-5 shrink-0" />
-            <div>
-              <div className="font-medium">Failed to load performance metrics</div>
-              <div className="text-sm opacity-80">{error}</div>
-            </div>
-          </motion.div>
-        )}
+            <RefreshCw className="size-3 text-[#00A0E8]" />
+          </button>
+        </div>
+      </div>
 
-        {/* Rankings Chart */}
-        <Card className={cardBg}>
-          <CardContent className="p-6">
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <currentMetric.icon className="size-5 text-violet-400" />
-                <div>
-                  <h3 className="text-lg font-semibold text-white">{currentMetric.label} Rankings</h3>
-                  <p className="text-xs text-white/60 mt-0.5">{currentMetric.description}</p>
-                </div>
-              </div>
-              <div className="text-xs text-white/60">
-                Last {days} {days === 1 ? 'day' : 'days'}
-              </div>
-            </div>
-            
-            {loading && !data ? (
-              <div className="flex h-96 items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                  <RefreshCw className="size-8 animate-spin text-violet-400" />
-                  <p className="text-sm text-white/60">Loading rankings...</p>
-                </div>
-              </div>
-            ) : chartData.length === 0 ? (
-              <div className="flex h-96 items-center justify-center">
-                <p className="text-sm text-white/60">No data available</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={500}>
-                <BarChart 
-                  data={chartData} 
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={true} vertical={false} />
-                  <XAxis
-                    type="number"
-                    stroke="#ffffff"
-                    tick={{ fill: "#ffffff", fontSize: 12 }}
-                    label={{ 
-                      value: currentMetric.label, 
-                      position: 'insideBottom', 
-                      offset: -5,
-                      style: { fill: '#ffffff', fontSize: 12 }
-                    }}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="team_id"
-                    stroke="#ffffff"
-                    tick={{ fill: "#ffffff", fontSize: 12 }}
-                    width={80}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "rgba(10, 10, 20, 0.95)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: "8px",
-                      padding: "12px",
-                    }}
-                    labelStyle={{ color: "#ffffff", marginBottom: "8px", fontWeight: "bold" }}
-                    itemStyle={{ color: "#ffffff", padding: "2px 0" }}
-                    formatter={(value: any) => [currentMetric.format(value), currentMetric.label]}
-                    cursor={{ fill: 'rgba(139, 92, 246, 0.1)' }}
-                  />
-                  <Bar dataKey="value" radius={[0, 8, 8, 0]}>
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+      {/* Info Bar */}
+      <div className="border-b border-[#333333] bg-[#000000] px-2 py-1">
+        <div className="text-[10px] text-[#808080] uppercase tracking-wider">
+          {currentMetric.description}
+        </div>
+      </div>
 
-        {/* Footer */}
-        {lastUpdated && (
-          <div className="mt-6 flex items-center justify-center gap-2 text-xs text-white">
-            <span>Last updated: {lastUpdated.toLocaleString()}</span>
-            <span>•</span>
-            <span>Auto-refreshes every 60s</span>
+      {/* Error Display */}
+      {error && (
+        <div className="border-b border-[#FF0000] bg-[#FF0000]/10 px-2 py-1">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="size-3 shrink-0 text-[#FF0000]" />
+            <div className="text-[10px] text-[#FF0000] uppercase tracking-wider">{error}</div>
           </div>
+        </div>
+      )}
+
+      {/* Chart Area */}
+      <div className="flex-1 p-1 overflow-hidden">
+        {loading && !data ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <RefreshCw className="size-4 animate-spin text-[#00A0E8]" />
+              <p className="text-[10px] text-[#808080] uppercase tracking-wider">LOADING...</p>
+            </div>
+          </div>
+        ) : chartData.length === 0 ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <AlertTriangle className="size-4 text-[#808080]" />
+              <p className="text-[10px] text-[#808080] uppercase tracking-wider">NO DATA</p>
+            </div>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={chartData} 
+              layout="vertical"
+              margin={{ top: 4, right: 4, left: 4, bottom: 4 }}
+            >
+              <CartesianGrid strokeDasharray="2 2" stroke="#333333" horizontal={true} vertical={false} />
+              <XAxis
+                type="number"
+                stroke="#808080"
+                tick={{ fill: "#808080", fontSize: 10, fontFamily: "monospace" }}
+                tickLine={{ stroke: "#333333" }}
+                axisLine={{ stroke: "#333333" }}
+              />
+              <YAxis
+                type="category"
+                dataKey="team_id"
+                stroke="#808080"
+                tick={{ fill: "#808080", fontSize: 10, fontFamily: "monospace" }}
+                tickLine={{ stroke: "#333333" }}
+                axisLine={{ stroke: "#333333" }}
+                width={80}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#000000",
+                  border: "1px solid #333333",
+                  borderRadius: "0",
+                  padding: "4px 8px",
+                }}
+                labelStyle={{ color: "#00A0E8", fontSize: "10px", fontFamily: "monospace", marginBottom: "4px" }}
+                itemStyle={{ color: "#CCCCCC", fontSize: "10px", fontFamily: "monospace", padding: "1px 0" }}
+                formatter={(value: any) => [currentMetric.format(value), currentMetric.label]}
+                cursor={{ fill: 'rgba(0, 160, 232, 0.1)' }}
+              />
+              <Bar dataKey="value" radius={0}>
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         )}
       </div>
     </div>

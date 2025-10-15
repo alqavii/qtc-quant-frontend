@@ -1,11 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpRight, ArrowDownRight, RefreshCw, AlertTriangle, Trophy, Upload } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { RefreshCw, AlertTriangle } from "lucide-react";
 
 // ----------------------------------------------------------------------------
 // CONFIG
@@ -20,8 +16,13 @@ interface LeaderboardItem {
   team_id: string;
   portfolio_value: number | null;
 }
+
 interface LeaderboardResponse {
   leaderboard: LeaderboardItem[];
+}
+
+interface Props {
+  onTeamSelect?: (teamId: string | null) => void;
 }
 
 // ----------------------------------------------------------------------------
@@ -80,25 +81,12 @@ const sortRowsDesc = (rows: LeaderboardItem[]) => {
 // ----------------------------------------------------------------------------
 // COMPONENT
 // ----------------------------------------------------------------------------
-export default function QTCQuantLeaderboard() {
+export default function QTCQuantLeaderboard({ onTeamSelect }: Props) {
   const [rows, setRows] = useState<LeaderboardItem[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const mountedRef = useRef(false);
-
-  // Light self-tests once
-  useEffect(() => {
-    if (mountedRef.current) return;
-    mountedRef.current = true;
-    try {
-      console.groupCollapsed("[QTC Leaderboard] Self-tests");
-      console.assert(formatUSD(1234.5) === "$1,234.50", "formatUSD basic");
-      console.assert(formatUSD(null) === "N/A", "formatUSD null");
-      console.assert(classNames("a", undefined, "c") === "a c", "classNames");
-      console.groupEnd();
-    } catch {}
-  }, []);
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
 
   const fetchData = async () => {
     setError(null);
@@ -123,206 +111,112 @@ export default function QTCQuantLeaderboard() {
     return () => clearInterval(id);
   }, []);
 
-  const headerGradient =
-    "bg-[radial-gradient(1200px_600px_at_50%_-10%,rgba(168,85,247,0.25),transparent_60%),linear-gradient(180deg,#0b0f1c_0%,#0a0a14_100%)]";
-  const bodyBg = "bg-[#0a0a14]";
+  const handleTeamClick = (teamId: string) => {
+    const newSelection = selectedTeam === teamId ? null : teamId;
+    setSelectedTeam(newSelection);
+    onTeamSelect?.(newSelection);
+  };
 
   return (
-    <div className={classNames("min-h-svh w-full text-white", bodyBg)} data-testid="qtc-root">
-      {/* Top banner / hero */}
-      <div className={classNames("relative overflow-hidden", headerGradient)}>
-        <div className="absolute inset-0 pointer-events-none">
-          <motion.div
-            className="absolute -top-28 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full blur-3xl"
-            initial={{ opacity: 0.2, scale: 0.9 }}
-            animate={{ opacity: 0.35, scale: 1.05 }}
-            transition={{ duration: 6, repeat: Infinity, repeatType: "reverse" }}
-            style={{
-              background:
-                "radial-gradient(circle at 50% 50%, rgba(139,92,246,0.35), transparent 50%)",
-            }}
-          />
-        </div>
-
-        <div className="mx-auto max-w-6xl px-4 pb-10 pt-12 sm:pt-16">
-          <div className="flex items-center justify-between gap-4">
-            <motion.h1
-              layout
-              className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight"
-            >
-              <span className="opacity-80">QTC</span>
-              <span className="mx-2 opacity-40">|</span>
-              <span className="opacity-95">Quant</span>
-              <span className="ml-3 inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs sm:text-sm font-medium text-white/80 ring-1 ring-white/10">
-                <Trophy className="size-4" /> Leaderboard
-              </span>
-            </motion.h1>
-            <div className="flex items-center gap-2">
-              <Link href="/submit">
-                <Button
-                  variant="ghost"
-                  className="rounded-full border border-violet-500/30 bg-violet-500/10 backdrop-blur transition-all duration-150 hover:-translate-y-0.5 hover:bg-violet-500/20 hover:border-violet-400/50 hover:shadow-lg hover:shadow-violet-500/20 text-white"
-                  title="Submit Strategy"
-                >
-                  <Upload className="mr-2 size-4" /> Submit Strategy
-                </Button>
-              </Link>
-              <Button
-                variant="ghost"
-                className="rounded-full border border-white/10 bg-white/5 backdrop-blur transition-transform duration-150 hover:-translate-y-0.5 hover:bg-white/10 active:translate-y-[1px] active:scale-[0.96] active:bg-white/20 active:shadow-inner"
-                onClick={fetchData}
-                title="Refresh"
-              >
-                <RefreshCw className="mr-2 size-4 animate-spin-slow [animation-duration:7s]" /> Refresh
-              </Button>
-            </div>
+    <div className="w-full h-full bg-[#000000] text-[#CCCCCC] flex flex-col" data-testid="qtc-root">
+      {/* Error Display */}
+      {error && (
+        <div className="border-b border-[#FF0000] bg-[#FF0000]/10 p-2">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="size-3 shrink-0 text-[#FF0000]" />
+            <div className="text-[10px] text-[#FF0000] uppercase tracking-wider">{error}</div>
           </div>
-
-          <div className="mt-4 text-xs sm:text-sm text-white/60">
-            <span>Updates every minute</span>
-            {lastUpdated && (
-              <span className="ml-2">• Last updated: {lastUpdated.toLocaleString()}</span>
-            )}
-          </div>
-
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-400/10 p-3 text-amber-200"
-            >
-              <AlertTriangle className="mt-0.5 size-5 shrink-0" />
-              <div>
-                <div className="font-medium">Couldn't load the leaderboard.</div>
-                <div className="text-sm opacity-80">
-                  {error.includes("TypeError: Failed to fetch") || error.includes("CORS")
-                    ? "If this is blocked by CORS, proxy this request through your backend."
-                    : error}
-                </div>
-              </div>
-            </motion.div>
-          )}
         </div>
-      </div>
+      )}
 
-      {/* Leaderboard */}
-      <div className="mx-auto max-w-6xl px-4 pb-24">
-        <Card className="border-white/10 bg-white/[0.03] backdrop-blur-sm">
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="min-w-full table-fixed" data-testid="qtc-table">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wider text-white/50">
-                    <th className="w-16 px-4 py-4">Rank</th>
-                    <th className="px-4 py-4">Team</th>
-                    <th className="w-48 px-4 py-4 text-right">Portfolio Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <AnimatePresence initial={false}>
-                    {loading && (!rows || rows.length === 0) &&
-                      [...Array(8)].map((_, i) => (
-                        <motion.tr
-                          key={`skeleton-${i}`}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="border-t border-white/5"
-                        >
-                          <td className="px-4 py-4">
-                            <div className="h-4 w-10 animate-pulse rounded bg-white/10" />
-                          </td>
-                          <td className="px-4 py-4">
-                            <div className="h-4 w-40 animate-pulse rounded bg-white/10" />
-                          </td>
-                          <td className="px-4 py-4 text-right">
-                            <div className="ml-auto h-4 w-28 animate-pulse rounded bg-white/10" />
-                          </td>
-                        </motion.tr>
-                      ))}
-
-                    {!loading && rows && rows.length > 0 &&
-                      rows.map((r, idx) => (
-                        <motion.tr
-                          key={r.team_id}
-                          layout
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ type: "spring", stiffness: 120, damping: 18, mass: 0.6 }}
-                          className={classNames(
-                            "border-t border-white/5 hover:bg-white/[0.04]",
-                            idx < 3 &&
-                              "bg-gradient-to-r from-transparent via-white/[0.02] to-transparent"
-                          )}
-                          data-testid={`qtc-row-${idx}`}
-                        >
-                          <td className="px-4 py-4 align-middle">
-                            <div className="flex items-center gap-2 text-sm text-white/70">
-                              <span className="inline-flex size-7 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10">
-                                {idx + 1}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 align-middle">
-                            <div className="flex items-center gap-3">
-                              <div className="relative">
-                                <div className="size-8 rounded-xl bg-violet-500/20 ring-1 ring-violet-400/20" />
-                                <div className="absolute inset-0 -z-10 rounded-xl blur-xl bg-violet-700/20" />
-                              </div>
-                              <div className="font-mono text-sm sm:text-base tracking-tight text-white">
-                                {r.team_id}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 align-middle text-right">
-                            <div className="inline-flex items-center justify-end gap-2 font-medium text-white">
-                              <span className="tabular-nums text-white">
-                                {formatUSD(r.portfolio_value)}
-                              </span>
-                              {typeof r.portfolio_value === "number" ? (
-                                <ArrowUpRight className="size-4 opacity-40" />
-                              ) : (
-                                <ArrowDownRight className="size-4 opacity-40" />
-                              )}
-                            </div>
-                          </td>
-                        </motion.tr>
-                      ))}
-
-                    {!loading && rows && rows.length === 0 && (
-                      <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                        <td className="px-4 py-8 text-center text-white/60" colSpan={3}>
-                          No teams yet.
-                        </td>
-                      </motion.tr>
+      {/* Loading State */}
+      {loading && !rows ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <RefreshCw className="size-6 animate-spin text-[#00A0E8]" />
+            <p className="text-[10px] text-[#808080] uppercase tracking-wider">LOADING...</p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-auto">
+          <table className="w-full border-collapse" data-testid="qtc-table">
+            <thead className="sticky top-0 bg-[#0A0A0A] border-b border-[#333333]">
+              <tr className="text-left text-[10px] uppercase tracking-wider text-[#808080]">
+                <th className="w-12 px-2 py-2 font-medium">#</th>
+                <th className="px-2 py-2 font-medium">TEAM</th>
+                <th className="px-2 py-2 text-right font-medium">VALUE</th>
+                <th className="w-16 px-2 py-2 text-center font-medium">CHG</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#333333]">
+              {rows && rows.map((r, idx) => {
+                const isSelected = selectedTeam === r.team_id;
+                const rankClass = idx === 0 ? "text-[#FFAA00]" : idx === 1 ? "text-[#CCCCCC]" : idx === 2 ? "text-[#CD7F32]" : "text-[#808080]";
+                
+                return (
+                  <tr
+                    key={r.team_id}
+                    onClick={() => handleTeamClick(r.team_id)}
+                    className={classNames(
+                      "transition-colors cursor-pointer border-l-2",
+                      isSelected
+                        ? "bg-[#00A0E8]/10 border-l-[#00A0E8] hover:bg-[#00A0E8]/20"
+                        : "border-l-transparent hover:bg-[#1A1A1A]"
                     )}
-                  </AnimatePresence>
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                  >
+                    <td className="px-2 py-2">
+                      <span className={classNames("text-xs font-bold font-mono tabular-nums", rankClass)}>
+                        {idx + 1}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono uppercase tracking-wider text-[#CCCCCC]">
+                          {r.team_id}
+                        </span>
+                        {isSelected && (
+                          <span className="text-[10px] text-[#00A0E8]">●</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      <span className="text-xs font-mono tabular-nums text-[#CCCCCC]">
+                        {formatUSD(r.portfolio_value)}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      {typeof r.portfolio_value === "number" && r.portfolio_value >= 10000 ? (
+                        <span className="text-[10px] text-[#00C805] font-bold">▲</span>
+                      ) : typeof r.portfolio_value === "number" ? (
+                        <span className="text-[10px] text-[#FF0000] font-bold">▼</span>
+                      ) : (
+                        <span className="text-[10px] text-[#808080]">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
 
-        {/* Footer tips */}
-        <div className="mt-6 text-xs text-white/40">
-          <span>
-            Powered by QT Capital{" "}
-            <code className="rounded bg-white/5 px-1 py-0.5">QTC-Alpha v1.0</code>
-          </span>
-          <span className="ml-2">• Polls every 60s • Null values shown as N/A</span>
+              {!loading && rows && rows.length === 0 && (
+                <tr>
+                  <td className="px-2 py-8 text-center text-[#808080] text-[10px] uppercase tracking-wider" colSpan={4}>
+                    NO DATA
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      </div>
+      )}
 
-      {/* Subtle corner decoration */}
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -bottom-24 -right-24 h-96 w-96 rotate-12 rounded-full bg-gradient-to-tr from-violet-700/20 via-fuchsia-600/10 to-transparent blur-3xl" />
-      </div>
-
-      <style jsx global>{`
-        .animate-spin-slow { animation: spin linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
+      {/* Status Footer */}
+      {lastUpdated && (
+        <div className="border-t border-[#333333] px-2 py-1 bg-[#0A0A0A]">
+          <div className="text-[10px] text-[#808080] uppercase tracking-wider">
+            {lastUpdated.toLocaleTimeString()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 # QTC Alpha API Documentation
 
 **Version:** Beta
-**Last Updated:** October 13, 2025
+**Last Updated:** October 15, 2025
 
 ---
 
@@ -30,12 +30,16 @@ The QTC Alpha API provides both public and authenticated endpoints for accessing
 - **Team-specific metrics and trade history**
 - **Server-Sent Events (SSE)** for live activity streams
 - **Strategy file uploads** (single file, ZIP packages, or multiple files) ⭐ NEW
+- **Error tracking and debugging** (timeouts, exceptions, validation failures) ⭐ NEW
+- **Detailed position history** (per-symbol tracking and aggregate summaries) ⭐ NEW
 
 **API Features:**
 - RESTful JSON API
 - CORS enabled for browser access (GET and POST methods)
 - Server-Sent Events for real-time updates
 - File upload support for strategy deployment
+- Strategy error logging and monitoring
+- Comprehensive position tracking
 - Rate-limited to prevent abuse
 
 ---
@@ -340,29 +344,62 @@ GET /api/v1/team/test1/trades?key=XBGuqdB54MVsyZ18BC6K3HwN3CaIiBC3vFdDsxMisUg&li
   "count": 25,
   "trades": [
     {
+      "team_id": "test1",
       "timestamp": "2025-10-10T14:30:00+00:00",
       "symbol": "NVDA",
       "side": "buy",
-      "quantity": 10,
-      "price": 500.25,
+      "quantity": "10.0",
+      "requested_price": "500.25",
+      "execution_price": "500.25",
       "order_type": "market",
-      "team_id": "test1"
+      "broker_order_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
     },
     {
+      "team_id": "test1",
       "timestamp": "2025-10-10T14:25:00+00:00",
       "symbol": "AAPL",
       "side": "sell",
-      "quantity": 5,
-      "price": 175.50
+      "quantity": "5.0",
+      "requested_price": "175.50",
+      "execution_price": "175.48",
+      "order_type": "market",
+      "broker_order_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
     }
   ]
 }
 ```
 
+**Response Fields:**
+- `team_id` - Team identifier
+- `count` - Total number of trades returned
+- `trades` - Array of trade objects, each containing:
+  - `team_id` - Team that executed the trade
+  - `timestamp` - Execution timestamp (ISO 8601, UTC)
+  - `symbol` - Stock ticker (e.g., "NVDA", "AAPL")
+  - `side` - "buy" or "sell"
+  - `quantity` - Share quantity (string representation of decimal)
+  - `requested_price` - Price requested by the strategy (string)
+  - `execution_price` - Actual execution price from broker (string)
+  - `order_type` - Order type ("market", "limit", etc.)
+  - `broker_order_id` - Alpaca broker order ID (UUID, may be null)
+
+**Important Notes:**
+1. **All numeric values are strings** - Parse them in your frontend:
+   ```javascript
+   const price = parseFloat(trade.execution_price);
+   const quantity = parseFloat(trade.quantity);
+   const totalValue = price * quantity;
+   ```
+
+2. **Trades are ordered most recent first** after reversal
+
+3. **`requested_price` vs `execution_price`** - May differ slightly due to market conditions
+
 **Use Cases:**
 - Display trade history table
 - Analyze trading patterns
 - Track order execution
+- Calculate trade costs and P&L
 
 ---
 
@@ -516,6 +553,258 @@ GET /api/v1/leaderboard/metrics?days=7&sort_by=sharpe_ratio
 - Compare teams by different performance criteria
 - Find best risk-adjusted performers
 - Sort by Sharpe ratio instead of just portfolio value
+
+---
+
+#### 11. Get Team Errors ⭐ NEW
+**GET** `/api/v1/team/{team_id}/errors`
+
+Returns recent strategy execution errors, timeouts, and validation failures for a team. Essential for debugging strategy issues.
+
+**Authentication:** Required (API key)
+
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `team_id` | string (path) | - | Team identifier |
+| `key` | string (query) | - | **Required** Team API key |
+| `limit` | integer | 100 | Max errors to return (1-500) |
+
+**Example Request:**
+```
+GET /api/v1/team/epsilon/errors?key=YOUR_API_KEY&limit=20
+```
+
+**Response:**
+```json
+{
+  "team_id": "epsilon",
+  "error_count": 5,
+  "errors": [
+    {
+      "timestamp": "2025-10-14T14:30:00+00:00",
+      "error_type": "TimeoutError",
+      "message": "Strategy execution exceeded 5 seconds",
+      "strategy": "Strategy",
+      "timeout": true,
+      "phase": "signal_generation"
+    },
+    {
+      "timestamp": "2025-10-14T14:28:00+00:00",
+      "error_type": "KeyError",
+      "message": "'AAPL'",
+      "strategy": "Strategy",
+      "timeout": false,
+      "phase": "signal_generation"
+    }
+  ]
+}
+```
+
+**Error Types:**
+- `TimeoutError` - Strategy took longer than 5 seconds
+- `KeyError` - Missing data or symbol
+- `ValidationError` - Invalid signal format
+- `AttributeError` - Code logic errors
+- `ImportError` - Blacklisted import attempted
+
+**Use Cases:**
+- Debug strategy timeouts
+- Identify runtime exceptions
+- Track validation errors
+- Monitor strategy health
+
+---
+
+#### 12. Get Portfolio History with Positions ⭐ NEW
+**GET** `/api/v1/team/{team_id}/portfolio-history`
+
+Returns complete portfolio snapshots including all position details over time. Unlike `/history` which only returns portfolio value, this endpoint includes all position data for each timestamp.
+
+**Authentication:** Required (API key)
+
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `team_id` | string (path) | - | Team identifier |
+| `key` | string (query) | - | **Required** Team API key |
+| `days` | integer | 7 | Days to look back (1-365) |
+| `limit` | integer | 500 | Max snapshots (1-5000) |
+
+**Example Request:**
+```
+GET /api/v1/team/epsilon/portfolio-history?key=YOUR_API_KEY&days=7&limit=100
+```
+
+**Response:**
+```json
+{
+  "team_id": "epsilon",
+  "days": 7,
+  "snapshot_count": 2835,
+  "snapshots": [
+    {
+      "timestamp": "2025-10-14T14:30:00+00:00",
+      "cash": 95000.0,
+      "market_value": 100005.0,
+      "positions": {
+        "AAPL": {
+          "symbol": "AAPL",
+          "quantity": 10,
+          "side": "buy",
+          "avg_cost": 150.50,
+          "value": 1505.0,
+          "pnl_unrealized": 5.0
+        },
+        "NVDA": {
+          "symbol": "NVDA",
+          "quantity": 5,
+          "side": "buy",
+          "avg_cost": 700.00,
+          "value": 3500.0,
+          "pnl_unrealized": -50.0
+        }
+      }
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- Portfolio composition charts (pie/stacked area)
+- Position timeline visualization
+- Entry/exit point analysis
+- Detailed portfolio reconstruction
+- Asset allocation tracking
+
+---
+
+#### 13. Get Position History for Symbol ⭐ NEW
+**GET** `/api/v1/team/{team_id}/position/{symbol}/history`
+
+Track how a specific position evolved over time. Shows quantity, average cost, value, and P&L for one symbol across multiple timestamps.
+
+**Authentication:** Required (API key)
+
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `team_id` | string (path) | - | Team identifier |
+| `symbol` | string (path) | - | Stock symbol (e.g., AAPL, NVDA) |
+| `key` | string (query) | - | **Required** Team API key |
+| `days` | integer | 7 | Days to look back (1-365) |
+| `limit` | integer | 1000 | Max data points (1-10000) |
+
+**Example Request:**
+```
+GET /api/v1/team/epsilon/position/AAPL/history?key=YOUR_API_KEY&days=7&limit=500
+```
+
+**Response:**
+```json
+{
+  "team_id": "epsilon",
+  "symbol": "AAPL",
+  "days": 7,
+  "data_points": 156,
+  "history": [
+    {
+      "timestamp": "2025-10-14T09:30:00+00:00",
+      "quantity": 0,
+      "avg_cost": 0,
+      "value": 0,
+      "pnl_unrealized": 0
+    },
+    {
+      "timestamp": "2025-10-14T09:31:00+00:00",
+      "quantity": 10,
+      "avg_cost": 150.50,
+      "value": 1505.0,
+      "pnl_unrealized": 5.0
+    },
+    {
+      "timestamp": "2025-10-14T14:30:00+00:00",
+      "quantity": 10,
+      "avg_cost": 150.50,
+      "value": 1510.0,
+      "pnl_unrealized": 10.0
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- Symbol-specific position tracking
+- Entry/exit visualization
+- P&L progression for one asset
+- Position sizing analysis
+- Holding period analysis
+
+---
+
+#### 14. Get Positions Summary ⭐ NEW
+**GET** `/api/v1/team/{team_id}/positions/summary`
+
+Get aggregate statistics for all symbols traded by a team. Shows which symbols were held, for how long, current positions, and trading frequency.
+
+**Authentication:** Required (API key)
+
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `team_id` | string (path) | - | Team identifier |
+| `key` | string (query) | - | **Required** Team API key |
+| `days` | integer | 30 | Days to analyze (1-365) |
+
+**Example Request:**
+```
+GET /api/v1/team/epsilon/positions/summary?key=YOUR_API_KEY&days=30
+```
+
+**Response:**
+```json
+{
+  "team_id": "epsilon",
+  "period_days": 30,
+  "symbols_traded": 5,
+  "current_positions": 2,
+  "symbols": [
+    {
+      "symbol": "AAPL",
+      "currently_holding": true,
+      "current_quantity": 10,
+      "current_value": 1505.0,
+      "current_pnl": 5.0,
+      "times_held": 156,
+      "minutes_held": 156,
+      "max_quantity": 15,
+      "avg_quantity": 8.5
+    },
+    {
+      "symbol": "NVDA",
+      "currently_holding": false,
+      "current_quantity": 0,
+      "times_held": 45,
+      "minutes_held": 45,
+      "max_quantity": 10,
+      "avg_quantity": 5.0
+    }
+  ]
+}
+```
+
+**Metrics Explained:**
+- `times_held` - Number of minutes position was held
+- `minutes_held` - Total duration position was active
+- `max_quantity` - Largest position size ever held
+- `avg_quantity` - Average position size when holding
+
+**Use Cases:**
+- Overview of all trading activity
+- Identify most traded symbols
+- Current positions snapshot
+- Trading frequency analysis
+- Position concentration analysis
 
 ---
 
@@ -707,33 +996,83 @@ const response = await fetch(
 
 #### Security Validation
 
-All uploaded files are automatically validated for security:
+All uploaded files are automatically validated for security using a **blacklist approach** - you can import any library except those explicitly blocked for security reasons.
 
-**✅ Allowed Imports:**
-- **Data Processing:** `numpy`, `pandas`, `scipy`
-- **Mathematics:** `math`, `statistics`, `decimal`
-- **Standard Library:** `collections`, `typing`
+**✅ ALLOWED - Import freely:**
+- **Data Science:** `numpy`, `pandas`, `scipy`, `scikit-learn`, `statsmodels`
+- **Technical Analysis:** `ta`, `ta-lib` (if available)
+- **Mathematics:** `math`, `cmath`, `statistics`, `decimal`, `fractions`, `random`
+- **Data Structures:** `collections`, `heapq`, `bisect`, `array`, `queue`, `dataclasses`, `enum`, `typing`
+- **String/Text:** `string`, `re`, `difflib`, `textwrap`
+- **Date/Time:** `datetime`, `time`, `calendar`, `zoneinfo`
+- **Algorithms:** `itertools`, `functools`, `operator`, `copy`
+- **And most other Python libraries not in the blacklist below**
 
-**❌ Blocked Operations:**
-- **Network Access:** `requests`, `urllib`, `socket`, `http`
-- **File I/O:** `open()`, file operations
-- **System Calls:** `subprocess`, `os.system`, `eval()`, `exec()`
-- **Dynamic Imports:** `__import__()`, `importlib` (for user code)
+**❌ BLACKLISTED IMPORTS (65 modules):**
 
-**Validation Checks:**
+Security risks - these imports will cause your strategy to be rejected:
+
+| Category | Blocked Modules | Reason |
+|----------|----------------|---------|
+| **Process Control** | `os`, `subprocess`, `multiprocessing` | System access |
+| **Dynamic Execution** | `importlib`, `pkgutil`, `runpy`, `code`, `codeop` | Code injection |
+| **File System** | `shutil`, `tempfile`, `pathlib`, `glob`, `fnmatch` | Unauthorized file access |
+| **Network** | `socket`, `urllib`, `urllib3`, `requests`, `http`, `ftplib`, `smtplib`, `poplib`, `imaplib`, `telnetlib`, `socketserver` | External communication |
+| **Serialization** | `pickle`, `shelve`, `marshal`, `dill` | RCE vulnerabilities |
+| **System Info** | `sys`, `ctypes`, `cffi`, `platform`, `pwd`, `grp`, `resource` | System introspection |
+| **Compiler/AST** | `ast`, `compile`, `dis`, `inspect` | Code manipulation |
+| **Database** | `sqlite3`, `dbm` | File system writes |
+| **Cloud APIs** | `boto3`, `botocore`, `azure`, `google`, `kubernetes`, `docker` | External services |
+| **Web Scraping** | `selenium`, `scrapy` | External access |
+| **GUI** | `tkinter`, `pygame` | Resource intensive |
+| **Other** | `webbrowser`, `xmlrpc`, `pty`, `tty`, `readline`, `rlcompleter`, `pdb`, `trace`, `traceback`, `warnings`, `logging`, `builtins`, `gc`, `weakref` | Various security/stability |
+
+**❌ BLOCKED BUILTIN FUNCTIONS:**
+- `open()` - File I/O
+- `exec()` - Dynamic code execution
+- `eval()` - Dynamic code evaluation
+- `__import__()` - Dynamic imports
+
+**📏 FILE SIZE LIMITS:**
+- **Single file upload:** 10 MB maximum
+- **ZIP file upload:** 50 MB maximum (compressed)
+- **Total extracted:** 100 MB maximum (uncompressed)
+- **Individual files in ZIP:** 10 MB each
+
+**⏱️ RATE LIMITS:**
+- **Upload endpoints:** 2-3 requests per minute per IP
+- **Other endpoints:** See [Rate Limits section](#rate-limits--best-practices)
+
+**🔒 VALIDATION CHECKS:**
 1. File type validation (.py or .zip only)
 2. UTF-8 encoding verification
 3. Python syntax checking (AST parsing)
-4. Import whitelist enforcement
-5. Path traversal prevention (for ZIP uploads)
-6. File size limits (10 MB per file in ZIP)
-7. Dangerous operation blocking
+4. Import blacklist enforcement (rejects dangerous imports)
+5. Dangerous builtin blocking (`open`, `exec`, `eval`, `__import__`)
+6. Path traversal prevention (for ZIP uploads)
+7. File size validation (10 MB/50 MB/100 MB limits)
+8. ZIP bomb protection (checks uncompressed size)
 
 **Error Examples:**
 ```json
-// Invalid import
+// Blacklisted import
 {
-  "detail": "Validation failed: Disallowed import: requests in strategy.py"
+  "detail": "Validation failed: Blacklisted import: requests in strategy.py"
+}
+
+// File too large
+{
+  "detail": "File too large. Maximum size is 10 MB"
+}
+
+// ZIP too large
+{
+  "detail": "ZIP file too large. Maximum size is 50 MB"
+}
+
+// Rate limit exceeded
+{
+  "error": "Rate limit exceeded: 3 per 1 minute"
 }
 
 // Missing strategy.py
@@ -743,7 +1082,12 @@ All uploaded files are automatically validated for security:
 
 // Path traversal attempt
 {
-  "detail": "Invalid file path in ZIP: ../../../etc/passwd"
+  "detail": "Invalid file path in ZIP: ../../../etc/passwd. Paths must be relative and not use .."
+}
+
+// Dangerous builtin
+{
+  "detail": "Validation failed: Disallowed builtin call 'open' in strategy.py"
 }
 ```
 
@@ -1345,22 +1689,67 @@ Save this as `index.html` and open in a browser. It will display:
 
 ## Rate Limits & Best Practices
 
+### Enforced Rate Limits
+
+The API enforces rate limits to prevent abuse and ensure fair usage. Limits are applied **per IP address**.
+
+| Endpoint | Method | Rate Limit | Purpose |
+|----------|--------|------------|---------|
+| `/api/v1/team/{team_id}/upload-strategy` | POST | **3 per minute** | Prevent storage abuse |
+| `/api/v1/team/{team_id}/upload-strategy-package` | POST | **2 per minute** | Large file uploads |
+| `/api/v1/team/{team_id}/upload-multiple-files` | POST | **2 per minute** | Multiple file uploads |
+| `/api/v1/team/{team_id}/portfolio-history` | GET | **20 per minute** | Full portfolio snapshots ⭐ NEW |
+| `/api/v1/leaderboard/history` | GET | **10 per minute** | Expensive query (all teams) |
+| `/api/v1/leaderboard/metrics` | GET | **10 per minute** | Heavy computation |
+| `/api/v1/team/{team_id}/errors` | GET | **30 per minute** | Error tracking ⭐ NEW |
+| `/api/v1/team/{team_id}/history` | GET | **30 per minute** | Moderate load |
+| `/api/v1/team/{team_id}/metrics` | GET | **30 per minute** | Moderate computation |
+| `/api/v1/team/{team_id}/trades` | GET | **30 per minute** | File reads |
+| `/api/v1/team/{team_id}/position/{symbol}/history` | GET | **30 per minute** | Symbol position tracking ⭐ NEW |
+| `/api/v1/team/{team_id}/positions/summary` | GET | **30 per minute** | Position statistics ⭐ NEW |
+| `/leaderboard` | GET | **60 per minute** | Simple read |
+| **All endpoints (default)** | ALL | **100 per minute** | Global safety net |
+
+**Rate Limit Headers:**
+
+Every response includes rate limit headers:
+```http
+X-RateLimit-Limit: 3
+X-RateLimit-Remaining: 2
+X-RateLimit-Reset: 1697234567
+```
+
+**Rate Limit Exceeded Response:**
+```json
+HTTP/1.1 429 Too Many Requests
+{
+  "error": "Rate limit exceeded: 3 per 1 minute"
+}
+```
+
 ### Recommended Polling Intervals
 
-| Endpoint | Recommended Interval | Max Frequency |
-|----------|---------------------|---------------|
-| `/leaderboard` | 60 seconds | 10 seconds |
-| `/api/v1/leaderboard/history` | 60 seconds | 30 seconds |
-| `/api/v1/team/{team_id}/history` | 60 seconds | 30 seconds |
-| `/activity/stream` | Keep connection open | N/A (SSE) |
+| Endpoint | Recommended Interval | Notes |
+|----------|---------------------|-------|
+| `/leaderboard` | 60 seconds | Updates every minute during market hours |
+| `/api/v1/leaderboard/history` | 5-10 minutes | Historical data, changes slowly |
+| `/api/v1/team/{team_id}/history` | 60 seconds | Team-specific updates |
+| `/api/v1/team/{team_id}/portfolio-history` | 2-5 minutes | Full snapshots with positions ⭐ NEW |
+| `/api/v1/team/{team_id}/errors` | On-demand | Check when debugging issues ⭐ NEW |
+| `/api/v1/team/{team_id}/position/{symbol}/history` | 5 minutes | Symbol-specific tracking ⭐ NEW |
+| `/api/v1/team/{team_id}/positions/summary` | 5-10 minutes | Aggregate statistics ⭐ NEW |
+| `/activity/stream` | Keep connection open | Use SSE, don't poll |
 
 ### Best Practices
 
-1. **Use SSE for real-time updates** instead of polling `/activity/recent`
-2. **Cache historical data** - it doesn't change once written
-3. **Limit data points** - use the `limit` parameter to reduce payload size
-4. **Handle errors gracefully** - API may be unavailable during restarts
-5. **Don't expose API keys in public frontend code** - use backend proxy for team-specific data
+1. **Respect rate limits** - Check `X-RateLimit-Remaining` header before making requests
+2. **Use SSE for real-time updates** instead of polling `/activity/recent`
+3. **Cache historical data** - it doesn't change once written
+4. **Implement exponential backoff** - When you hit 429, wait before retrying
+5. **Limit data points** - Use the `limit` parameter to reduce payload size
+6. **Handle errors gracefully** - API may be unavailable during restarts
+7. **Don't expose API keys in frontend code** - Use backend proxy for team-specific data
+8. **Batch upload attempts** - Don't retry uploads immediately on failure
 
 ### Performance Tips
 
@@ -1368,6 +1757,58 @@ Save this as `index.html` and open in a browser. It will display:
 - For charts, 500-1000 data points is usually sufficient
 - Historical data older than 1 day is cached in parquet files (faster)
 - Use compression (gzip) if your client supports it
+- Monitor rate limit headers to avoid hitting limits
+
+### Handling Rate Limits in Code
+
+**JavaScript Example:**
+```javascript
+async function fetchWithRateLimit(url) {
+  const response = await fetch(url);
+  
+  // Check rate limit headers
+  const remaining = response.headers.get('X-RateLimit-Remaining');
+  const reset = response.headers.get('X-RateLimit-Reset');
+  
+  if (response.status === 429) {
+    const resetTime = new Date(reset * 1000);
+    const waitMs = resetTime - Date.now();
+    console.log(`Rate limited. Waiting ${waitMs}ms...`);
+    await new Promise(resolve => setTimeout(resolve, waitMs));
+    return fetchWithRateLimit(url); // Retry
+  }
+  
+  if (remaining && parseInt(remaining) < 3) {
+    console.warn(`Rate limit warning: ${remaining} requests remaining`);
+  }
+  
+  return response.json();
+}
+```
+
+**Python Example:**
+```python
+import time
+import requests
+
+def fetch_with_rate_limit(url):
+    response = requests.get(url)
+    
+    # Check rate limit headers
+    remaining = int(response.headers.get('X-RateLimit-Remaining', 999))
+    reset = int(response.headers.get('X-RateLimit-Reset', 0))
+    
+    if response.status_code == 429:
+        wait_time = max(reset - time.time(), 60)
+        print(f"Rate limited. Waiting {wait_time}s...")
+        time.sleep(wait_time)
+        return fetch_with_rate_limit(url)  # Retry
+    
+    if remaining < 3:
+        print(f"Rate limit warning: {remaining} requests remaining")
+    
+    return response.json()
+```
 
 ---
 
@@ -1378,9 +1819,10 @@ Save this as `index.html` and open in a browser. It will display:
 | Code | Meaning | Common Causes |
 |------|---------|---------------|
 | 200 | Success | Request completed successfully |
-| 400 | Bad Request | Invalid parameters |
+| 400 | Bad Request | Invalid parameters, file too large, blacklisted import |
 | 401 | Unauthorized | Invalid or missing API key |
 | 404 | Not Found | Team ID or endpoint doesn't exist |
+| 429 | Too Many Requests | Rate limit exceeded - wait before retrying |
 | 500 | Server Error | Internal server error |
 
 ### Error Response Format
@@ -1442,9 +1884,13 @@ GET  /{team_key}                           # Team status (plain text)
 GET  /api/v1/team/{team_id}/history        # Team historical data
 GET  /api/v1/team/{team_id}/trades         # Team trade history
 GET  /api/v1/team/{team_id}/metrics        # Team performance metrics
+GET  /api/v1/team/{team_id}/errors         # Strategy execution errors ⭐ NEW
+GET  /api/v1/team/{team_id}/portfolio-history          # Full portfolio snapshots with positions ⭐ NEW
+GET  /api/v1/team/{team_id}/position/{symbol}/history  # Position history for specific symbol ⭐ NEW
+GET  /api/v1/team/{team_id}/positions/summary          # Aggregate position statistics ⭐ NEW
 ```
 
-### Strategy Upload Endpoints (Require API Key) ⭐ NEW
+### Strategy Upload Endpoints (Require API Key)
 ```
 POST /api/v1/team/{team_id}/upload-strategy            # Upload single strategy.py file
 POST /api/v1/team/{team_id}/upload-strategy-package    # Upload ZIP package (multi-file)
@@ -1460,7 +1906,19 @@ curl http://localhost:8000/leaderboard | jq
 # Test team history (replace with your key)
 curl "http://localhost:8000/api/v1/team/test1/history?key=YOUR_KEY&days=7" | jq
 
-# Test strategy upload (NEW)
+# Test error tracking (NEW)
+curl "http://localhost:8000/api/v1/team/epsilon/errors?key=YOUR_KEY&limit=10" | jq
+
+# Test portfolio history with positions (NEW)
+curl "http://localhost:8000/api/v1/team/epsilon/portfolio-history?key=YOUR_KEY&days=7&limit=100" | jq
+
+# Test position history for a symbol (NEW)
+curl "http://localhost:8000/api/v1/team/epsilon/position/AAPL/history?key=YOUR_KEY&days=7" | jq
+
+# Test position summary (NEW)
+curl "http://localhost:8000/api/v1/team/epsilon/positions/summary?key=YOUR_KEY&days=30" | jq
+
+# Test strategy upload
 curl -X POST "http://localhost:8000/api/v1/team/epsilon/upload-strategy" \
   -F "key=YOUR_API_KEY" \
   -F "strategy_file=@strategy.py"

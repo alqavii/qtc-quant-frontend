@@ -1,11 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { TrendingUp, Calendar, AlertTriangle, RefreshCw } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 // ----------------------------------------------------------------------------
 // CONFIG
@@ -59,15 +56,7 @@ const formatUSD = (n: number | null | undefined) => {
   if (n === null || n === undefined || Number.isNaN(n) || !isFinite(n)) return "N/A";
   
   try {
-    // Handle very large numbers
-    if (Math.abs(n) >= 1e12) {
-      return `$${(n / 1e12).toFixed(2)}T`;
-    } else if (Math.abs(n) >= 1e9) {
-      return `$${(n / 1e9).toFixed(2)}B`;
-    } else if (Math.abs(n) >= 1e6) {
-      return `$${(n / 1e6).toFixed(2)}M`;
-    }
-    
+    // FULL PRECISION - Terminal style
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
@@ -82,26 +71,30 @@ const formatUSD = (n: number | null | undefined) => {
 const classNames = (...xs: (string | false | null | undefined)[]) =>
   xs.filter(Boolean).join(" ");
 
-// Team colors - vibrant and highly distinguishable
+// Terminal colors - functional, not decorative
 const TEAM_COLORS = [
-  "#8b5cf6", // violet
-  "#f59e0b", // amber
-  "#10b981", // emerald
-  "#ec4899", // pink
-  "#06b6d4", // cyan
-  "#f43f5e", // rose
-  "#14b8a6", // teal
-  "#a78bfa", // light purple
-  "#fbbf24", // yellow
-  "#34d399", // light green
-  "#fb7185", // light pink
-  "#22d3ee", // light cyan
+  "#00A0E8", // bloomberg blue
+  "#00C805", // terminal green
+  "#FFAA00", // amber warning
+  "#FF0000", // red
+  "#00FFFF", // cyan
+  "#FF00FF", // magenta
+  "#FFFF00", // yellow
+  "#FFFFFF", // white
+  "#808080", // gray
+  "#FF8800", // orange
+  "#88FF00", // lime
+  "#00FF88", // spring green
 ];
 
 // ----------------------------------------------------------------------------
 // COMPONENT
 // ----------------------------------------------------------------------------
-export default function TeamHistoricalChart() {
+interface Props {
+  selectedTeam?: string | null;
+}
+
+export default function TeamHistoricalChart({ selectedTeam }: Props) {
   const [data, setData] = useState<TeamHistory | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -166,183 +159,145 @@ export default function TeamHistoricalChart() {
   }, [data]);
 
   const teams = data ? Object.keys(data) : [];
-
-  const bodyBg = "bg-[#0a0a14]";
-  const cardBg = "border-white/10 bg-white/[0.03] backdrop-blur-sm";
+  const filteredTeams = selectedTeam ? teams.filter(t => t === selectedTeam) : teams;
 
   return (
-    <div className={classNames("w-full text-white py-8", bodyBg)}>
-      <div className="mx-auto max-w-7xl px-4">
-        {/* Header */}
-        <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3"
-          >
-            <div className="rounded-xl bg-violet-500/20 p-3 ring-1 ring-violet-400/20">
-              <TrendingUp className="size-6 text-violet-400" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-white">Portfolio Performance</h2>
-              <p className="text-sm text-white/60 mt-1">Historical value comparison across all teams</p>
-            </div>
-          </motion.div>
-
-          <div className="flex items-center gap-2">
-            {/* Time period selector */}
-            <div className="flex gap-1 rounded-lg bg-white/5 p-1">
-              {[1, 7, 30].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDays(d)}
-                  className={classNames(
-                    "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
-                    days === d
-                      ? "bg-violet-500/80 text-white shadow-lg"
-                      : "text-white/60 hover:text-white hover:bg-white/10"
-                  )}
-                >
-                  {d === 1 ? '1 Day' : `${d} Days`}
-                </button>
-              ))}
-            </div>
-
-            <Button
-              variant="ghost"
-              className="rounded-full border border-white/10 bg-white/5 backdrop-blur transition-transform duration-150 hover:-translate-y-0.5 hover:bg-white/10"
-              onClick={fetchData}
-              title="Refresh"
+    <div className="w-full h-full bg-[#000000] text-[#CCCCCC] flex flex-col">
+      {/* Control Bar */}
+      <div className="border-b border-[#333333] bg-[#0A0A0A] px-2 py-1 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          {[1, 7, 30].map((d) => (
+            <button
+              key={d}
+              onClick={() => setDays(d)}
+              className={classNames(
+                "border text-[10px] uppercase tracking-wider px-2 py-1 font-mono transition-colors",
+                days === d
+                  ? "border-[#00A0E8] bg-[#00A0E8] text-[#000000]"
+                  : "border-[#333333] bg-[#0A0A0A] text-[#808080] hover:bg-[#1A1A1A] hover:text-[#CCCCCC]"
+              )}
             >
-              <RefreshCw className="size-4" />
-            </Button>
+              {d}D
+            </button>
+          ))}
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {lastUpdated && (
+            <span className="text-[10px] text-[#808080] uppercase tracking-wider font-mono">
+              {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          )}
+          <button
+            onClick={fetchData}
+            className="border border-[#333333] bg-[#0A0A0A] hover:bg-[#1A1A1A] p-1 transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw className="size-3 text-[#00A0E8]" />
+          </button>
+        </div>
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="border-b border-[#FF0000] bg-[#FF0000]/10 px-2 py-1">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="size-3 shrink-0 text-[#FF0000]" />
+            <div className="text-[10px] text-[#FF0000] uppercase tracking-wider">{error}</div>
           </div>
         </div>
+      )}
 
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-400/10 p-4 text-amber-200"
-          >
-            <AlertTriangle className="mt-0.5 size-5 shrink-0" />
-            <div>
-              <div className="font-medium">Failed to load historical data</div>
-              <div className="text-sm opacity-80">{error}</div>
+      {/* Chart Area */}
+      <div className="flex-1 p-1 overflow-hidden">
+        {loading && !data ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <RefreshCw className="size-4 animate-spin text-[#00A0E8]" />
+              <p className="text-[10px] text-[#808080] uppercase tracking-wider">LOADING...</p>
             </div>
-          </motion.div>
-        )}
-
-        {/* Main Chart */}
-        <Card className={classNames("mb-6", cardBg)}>
-          <CardContent className="p-6">
-            {loading && !data ? (
-              <div className="flex h-96 items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                  <RefreshCw className="size-8 animate-spin text-violet-400" />
-                  <p className="text-sm text-white/60">Loading historical data...</p>
-                </div>
-              </div>
-            ) : chartData.length === 0 || teams.length === 0 ? (
-              <div className="flex h-96 items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                  <AlertTriangle className="size-8 text-white/40" />
-                  <p className="text-sm text-white/60">No historical data available</p>
-                </div>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={chartData}>
-                  <defs>
-                    {teams.map((teamId, idx) => (
-                      <linearGradient key={teamId} id={`color${idx}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={TEAM_COLORS[idx % TEAM_COLORS.length]} stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor={TEAM_COLORS[idx % TEAM_COLORS.length]} stopOpacity={0}/>
-                      </linearGradient>
-                    ))}
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis
-                    dataKey="timestamp"
-                    stroke="#ffffff"
-                    tick={{ fill: "#ffffff", fontSize: 12 }}
-                    tickFormatter={(timestamp) => {
-                      const date = new Date(timestamp);
-                      if (days === 1) {
-                        return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                      }
-                      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    }}
-                  />
-                  <YAxis
-                    stroke="#ffffff"
-                    tick={{ fill: "#ffffff", fontSize: 12 }}
-                    tickFormatter={(value) => {
-                      if (value >= 1000000) {
-                        return `$${(value / 1000000).toFixed(1)}M`;
-                      } else if (value >= 1000) {
-                        return `$${(value / 1000).toFixed(0)}k`;
-                      } else if (value >= 1) {
-                        return `$${value.toFixed(0)}`;
-                      } else {
-                        return `$${value.toFixed(2)}`;
-                      }
-                    }}
-                    domain={['auto', 'auto']}
-                    padding={{ top: 20, bottom: 20 }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "rgba(10, 10, 20, 0.95)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: "8px",
-                      padding: "12px",
-                    }}
-                    labelStyle={{ color: "#ffffff", marginBottom: "8px" }}
-                    itemStyle={{ color: "#ffffff", padding: "2px 0" }}
-                    formatter={(value: any) => formatUSD(value)}
-                    labelFormatter={(timestamp) => {
-                      const date = new Date(timestamp);
-                      return date.toLocaleString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      });
-                    }}
-                  />
-                  <Legend
-                    wrapperStyle={{ paddingTop: "20px" }}
-                    iconType="line"
-                    formatter={(value) => <span style={{ color: "#ffffff" }}>{value}</span>}
-                  />
-                  {teams.map((teamId, idx) => (
-                    <Line
-                      key={teamId}
-                      type="monotone"
-                      dataKey={teamId}
-                      stroke={TEAM_COLORS[idx % TEAM_COLORS.length]}
-                      strokeWidth={3}
-                      dot={false}
-                      activeDot={{ r: 5, fill: TEAM_COLORS[idx % TEAM_COLORS.length], strokeWidth: 2, stroke: '#ffffff' }}
-                      connectNulls
-                      isAnimationActive={true}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Footer */}
-        {lastUpdated && (
-          <div className="mt-6 flex items-center justify-center gap-2 text-xs text-white">
-            <Calendar className="size-3" />
-            <span>Last updated: {lastUpdated.toLocaleString()}</span>
-            <span>•</span>
-            <span>Auto-refreshes every 60s</span>
           </div>
+        ) : chartData.length === 0 || teams.length === 0 ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <AlertTriangle className="size-4 text-[#808080]" />
+              <p className="text-[10px] text-[#808080] uppercase tracking-wider">NO DATA</p>
+            </div>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="2 2" stroke="#333333" />
+              <XAxis
+                dataKey="timestamp"
+                stroke="#808080"
+                tick={{ fill: "#808080", fontSize: 10, fontFamily: "monospace" }}
+                tickLine={{ stroke: "#333333" }}
+                axisLine={{ stroke: "#333333" }}
+                tickFormatter={(timestamp) => {
+                  const date = new Date(timestamp);
+                  if (days === 1) {
+                    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                  }
+                  return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+                }}
+                height={30}
+              />
+              <YAxis
+                stroke="#808080"
+                tick={{ fill: "#808080", fontSize: 10, fontFamily: "monospace" }}
+                tickLine={{ stroke: "#333333" }}
+                axisLine={{ stroke: "#333333" }}
+                tickFormatter={(value) => {
+                  // FULL PRECISION - Terminal style, just formatted compactly
+                  return value.toLocaleString('en-US');
+                }}
+                width={80}
+                domain={['auto', 'auto']}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#000000",
+                  border: "1px solid #333333",
+                  borderRadius: "0",
+                  padding: "4px 8px",
+                }}
+                labelStyle={{ color: "#00A0E8", fontSize: "10px", fontFamily: "monospace", marginBottom: "4px" }}
+                itemStyle={{ color: "#CCCCCC", fontSize: "10px", fontFamily: "monospace", padding: "1px 0" }}
+                formatter={(value: any) => formatUSD(value)}
+                labelFormatter={(timestamp) => {
+                  const date = new Date(timestamp);
+                  return date.toLocaleString('en-US', {
+                    month: 'numeric',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                }}
+              />
+              <Legend
+                wrapperStyle={{ paddingTop: "4px" }}
+                iconType="line"
+                formatter={(value) => <span style={{ color: "#CCCCCC", fontSize: "10px", fontFamily: "monospace", textTransform: "uppercase" }}>{value}</span>}
+                layout="horizontal"
+                verticalAlign="bottom"
+                align="center"
+              />
+              {filteredTeams.map((teamId, idx) => (
+                <Line
+                  key={teamId}
+                  type="monotone"
+                  dataKey={teamId}
+                  stroke={TEAM_COLORS[idx % TEAM_COLORS.length]}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 3, fill: TEAM_COLORS[idx % TEAM_COLORS.length], strokeWidth: 0 }}
+                  connectNulls
+                  isAnimationActive={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
         )}
       </div>
     </div>
