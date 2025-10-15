@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import TeamMetrics from "@/components/TeamMetrics";
 import TeamExecutionHealth from "@/components/TeamExecutionHealth";
+import StrategyUpload from "@/components/StrategyUpload";
+import OpenOrders from "@/components/OpenOrders";
 import PortfolioHistoryChart from "@/components/PortfolioHistoryChart";
 import PositionBreakdownChart from "@/components/PositionBreakdownChart";
 import TradesTable from "@/components/TradesTable";
@@ -281,9 +283,9 @@ export default function TeamDashboard() {
               </div>
               <div>
                 <h1 className="text-sm font-bold text-[#00A0E8] uppercase tracking-wider">
-                  QTC TERMINAL | {teamId.toUpperCase()}
+                  TEAM CONTROL CENTER | {teamId.toUpperCase()}
                 </h1>
-                <p className="text-[10px] text-[#808080] uppercase tracking-wider">LIVE MARKET DATA</p>
+                <p className="text-[10px] text-[#808080] uppercase tracking-wider">STRATEGY MANAGEMENT & LIVE ANALYTICS</p>
               </div>
             </div>
             <Button
@@ -303,6 +305,11 @@ export default function TeamDashboard() {
         {/* Strategy Execution Health */}
         <section>
           <TeamExecutionHealth teamId={teamId} apiKey={apiKey} />
+        </section>
+
+        {/* Strategy Upload */}
+        <section>
+          <StrategyUpload teamId={teamId} apiKey={apiKey} />
         </section>
 
         {/* Performance Metrics */}
@@ -335,6 +342,7 @@ export default function TeamDashboard() {
           <div className="space-y-3">
             <TradeCountChart teamId={teamId} apiKey={apiKey} />
             <AssetTradesChart teamId={teamId} apiKey={apiKey} />
+            <OpenOrders teamId={teamId} apiKey={apiKey} />
             <TradesTable teamId={teamId} apiKey={apiKey} />
           </div>
         </section>

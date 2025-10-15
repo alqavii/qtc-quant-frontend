@@ -44,21 +44,12 @@ export default function Page() {
             {/* Right: Navigation */}
             <div className="flex items-center gap-2">
               <Link
-                href="/submit"
-                className="border border-[#333333] bg-[#0A0A0A] hover:bg-[#1A1A1A] text-[#CCCCCC] text-xs uppercase tracking-wider px-3 py-1 transition-all"
-              >
-                <div className="flex items-center gap-1">
-                  <BarChart3 className="size-3" />
-                  <span>SUBMIT STRATEGY</span>
-                </div>
-              </Link>
-              <Link
                 href="/dashboard"
                 className="border border-[#00A0E8] bg-[#00A0E8] hover:bg-[#00B8FF] text-[#000000] text-xs uppercase tracking-wider px-3 py-1 font-bold transition-all"
               >
                 <div className="flex items-center gap-1">
                   <Activity className="size-3" />
-                  <span>TEAM DASHBOARD</span>
+                  <span>TEAM CONTROL CENTER</span>
                 </div>
               </Link>
             </div>

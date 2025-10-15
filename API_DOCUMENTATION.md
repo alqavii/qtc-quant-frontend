@@ -302,14 +302,12 @@ GET /line/XBGuqdB54MVsyZ18BC6K3HwN3CaIiBC3vFdDsxMisUg
     "positions": {
       "NVDA": {
         "quantity": 10,
-        "avg_cost": 500.0,
         "value": 5500.25
       }
     }
   },
   "metrics": {
-    "total_trades": 25,
-    "win_rate": 0.60
+    "total_trades": 25
   }
 }
 ```
@@ -510,9 +508,6 @@ GET /api/v1/team/test1/metrics?key=XBGuqdB54MVsyZ18BC6K3HwN3CaIiBC3vFdDsxMisUg&d
     "annualized_return_percentage": 12.47,
     "annualized_volatility": 0.0673,
     "annualized_volatility_percentage": 6.73,
-    "win_rate": 0.58,
-    "win_rate_percentage": 58.0,
-    "profit_factor": 1.45,
     "avg_win": 0.0012,
     "avg_loss": -0.0009,
     "total_trades": 250,
@@ -547,8 +542,6 @@ GET /api/v1/team/test1/metrics?key=XBGuqdB54MVsyZ18BC6K3HwN3CaIiBC3vFdDsxMisUg&d
 | **Max Drawdown** | Largest peak-to-trough decline | Closer to 0 is better |
 | **Total Return %** | Overall profit/loss since start | Positive is profitable |
 | **Annualized Return %** | Expected yearly return | Higher is better |
-| **Win Rate %** | Percentage of profitable periods | >50% is good |
-| **Profit Factor** | Total wins / total losses | >1 is profitable, >2 is good |
 
 **Use Cases:**
 - Comprehensive performance analysis
@@ -595,8 +588,6 @@ GET /api/v1/leaderboard/metrics?days=7&sort_by=sharpe_ratio
       "annualized_return": 0.1247,
       "annualized_return_percentage": 12.47,
       "annualized_volatility_percentage": 6.73,
-      "win_rate_percentage": 58.0,
-      "profit_factor": 1.45,
       "total_trades": 250,
       "current_value": 10542.75,
       "starting_value": 10000.00
@@ -817,17 +808,13 @@ GET /api/v1/team/epsilon/portfolio-history?key=YOUR_API_KEY&days=7&limit=100
           "symbol": "AAPL",
           "quantity": 10,
           "side": "buy",
-          "avg_cost": 150.50,
-          "value": 1505.0,
-          "pnl_unrealized": 5.0
+          "value": 1505.0
         },
         "NVDA": {
           "symbol": "NVDA",
           "quantity": 5,
           "side": "buy",
-          "avg_cost": 700.00,
-          "value": 3500.0,
-          "pnl_unrealized": -50.0
+          "value": 3500.0
         }
       }
     }
@@ -847,7 +834,7 @@ GET /api/v1/team/epsilon/portfolio-history?key=YOUR_API_KEY&days=7&limit=100
 #### 13. Get Position History for Symbol ⭐ NEW
 **GET** `/api/v1/team/{team_id}/position/{symbol}/history`
 
-Track how a specific position evolved over time. Shows quantity, average cost, value, and P&L for one symbol across multiple timestamps.
+Track how a specific position evolved over time. Shows quantity and value for one symbol across multiple timestamps.
 
 **Authentication:** Required (API key)
 
@@ -876,23 +863,17 @@ GET /api/v1/team/epsilon/position/AAPL/history?key=YOUR_API_KEY&days=7&limit=500
     {
       "timestamp": "2025-10-14T09:30:00+00:00",
       "quantity": 0,
-      "avg_cost": 0,
-      "value": 0,
-      "pnl_unrealized": 0
+      "value": 0
     },
     {
       "timestamp": "2025-10-14T09:31:00+00:00",
       "quantity": 10,
-      "avg_cost": 150.50,
-      "value": 1505.0,
-      "pnl_unrealized": 5.0
+      "value": 1505.0
     },
     {
       "timestamp": "2025-10-14T14:30:00+00:00",
       "quantity": 10,
-      "avg_cost": 150.50,
-      "value": 1510.0,
-      "pnl_unrealized": 10.0
+      "value": 1510.0
     }
   ]
 }
@@ -901,7 +882,7 @@ GET /api/v1/team/epsilon/position/AAPL/history?key=YOUR_API_KEY&days=7&limit=500
 **Use Cases:**
 - Symbol-specific position tracking
 - Entry/exit visualization
-- P&L progression for one asset
+- Position value progression for one asset
 - Position sizing analysis
 - Holding period analysis
 
@@ -1336,7 +1317,6 @@ All timestamps are in **ISO 8601 format with UTC timezone**:
   "positions": {
     "SYMBOL": {
       "quantity": 10,
-      "avg_cost": 500.0,
       "value": 5000.0,
       "side": "long"
     }
@@ -1527,8 +1507,6 @@ async function displayTeamMetrics(teamId, apiKey) {
   console.log(`  Calmar Ratio: ${metrics.calmar_ratio.toFixed(2)}`);
   console.log(`  Max Drawdown: ${metrics.max_drawdown_percentage.toFixed(2)}%`);
   console.log(`  Total Return: ${metrics.total_return_percentage.toFixed(2)}%`);
-  console.log(`  Win Rate: ${metrics.win_rate_percentage.toFixed(2)}%`);
-  console.log(`  Profit Factor: ${metrics.profit_factor.toFixed(2)}`);
   
   // Create metrics cards
   const metricsHTML = `
@@ -1580,7 +1558,6 @@ async function displayMetricsLeaderboard() {
           <th>Sharpe Ratio</th>
           <th>Total Return</th>
           <th>Max DD</th>
-          <th>Win Rate</th>
         </tr>
       </thead>
       <tbody>
@@ -1596,7 +1573,6 @@ async function displayMetricsLeaderboard() {
               ${team.total_return_percentage?.toFixed(2) || 'N/A'}%
             </td>
             <td>${team.max_drawdown_percentage?.toFixed(2) || 'N/A'}%</td>
-            <td>${team.win_rate_percentage?.toFixed(2) || 'N/A'}%</td>
           </tr>
         `).join('')}
       </tbody>
@@ -2049,16 +2025,18 @@ GET  /activity/stream                      # Live activity stream (SSE)
 
 ### Team Endpoints (Require API Key)
 ```
-GET  /line/{team_key}                      # Team status (JSON)
-GET  /{team_key}                           # Team status (plain text)
-GET  /api/v1/team/{team_id}/history        # Team historical data
-GET  /api/v1/team/{team_id}/trades         # Team trade history
-GET  /api/v1/team/{team_id}/metrics        # Team performance metrics
-GET  /api/v1/team/{team_id}/execution-health           # Execution health & timeout monitoring ⭐ NEW
-GET  /api/v1/team/{team_id}/errors         # Strategy execution errors ⭐ NEW
-GET  /api/v1/team/{team_id}/portfolio-history          # Full portfolio snapshots with positions ⭐ NEW
-GET  /api/v1/team/{team_id}/position/{symbol}/history  # Position history for specific symbol ⭐ NEW
-GET  /api/v1/team/{team_id}/positions/summary          # Aggregate position statistics ⭐ NEW
+GET     /{team_key}                                          # Team status (plain text)
+GET     /api/v1/team/{team_id}/history                       # Team historical data
+GET     /api/v1/team/{team_id}/trades                        # Team trade history (completed trades)
+GET     /api/v1/team/{team_id}/metrics                       # Team performance metrics
+GET     /api/v1/team/{team_id}/execution-health              # Execution health & timeout monitoring ⭐ NEW
+GET     /api/v1/team/{team_id}/errors                        # Strategy execution errors ⭐ NEW
+GET     /api/v1/team/{team_id}/portfolio-history             # Full portfolio snapshots with positions ⭐ NEW
+GET     /api/v1/team/{team_id}/position/{symbol}/history     # Position history for specific symbol ⭐ NEW
+GET     /api/v1/team/{team_id}/positions/summary             # Aggregate position statistics ⭐ NEW
+GET     /api/v1/team/{team_id}/orders/open                   # Open/pending orders ⭐ NEW
+GET     /api/v1/team/{team_id}/orders/{order_id}             # Order status details ⭐ NEW
+DELETE  /api/v1/team/{team_id}/orders/{order_id}             # Cancel open order ⭐ NEW
 ```
 
 ### Strategy Upload Endpoints (Require API Key)

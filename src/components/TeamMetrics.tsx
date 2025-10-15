@@ -155,33 +155,24 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
     },
     {
       label: "Total Return",
-      value: `${formatNumber(metrics.total_return_percentage, 2)}%`,
+      value: `${formatNumber(metrics.total_return_percentage, 3)}%`,
       change: metrics.total_return_percentage,
       category: "performance",
     },
     {
       label: "Sharpe Ratio",
       value: formatNumber(metrics.sharpe_ratio, 2),
-      subtitle: "Risk-Adjusted Return",
       category: "risk",
     },
     {
       label: "Sortino Ratio",
       value: formatNumber(metrics.sortino_ratio, 2),
-      subtitle: "Downside Risk",
       category: "risk",
     },
     {
       label: "Max Drawdown",
       value: `${formatNumber(metrics.max_drawdown_percentage, 2)}%`,
-      subtitle: "Peak to Trough",
       category: "risk",
-    },
-    {
-      label: "Win Rate",
-      value: `${formatNumber(metrics.win_rate_percentage, 1)}%`,
-      subtitle: `${metrics.winning_trades}/${metrics.total_trades} trades`,
-      category: "performance",
     },
     {
       label: "Total Trades",
@@ -209,7 +200,7 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
                 cardBg,
                 isPrimary && "border-[#00A0E8]"
               )}>
-                <CardContent className="p-3">
+                <CardContent className="p-3 h-[88px] flex flex-col justify-between">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-medium uppercase tracking-wider text-[#808080]">
@@ -230,12 +221,12 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
                     )}>
                       {metric.value}
                     </div>
-                    {metric.subtitle && (
-                      <div className="text-[10px] text-[#808080] font-mono">
-                        {metric.subtitle}
-                      </div>
-                    )}
                   </div>
+                  {metric.subtitle && (
+                    <div className="text-[10px] text-[#808080] font-mono mt-auto">
+                      {metric.subtitle}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
