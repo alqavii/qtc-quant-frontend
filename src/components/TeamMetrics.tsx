@@ -30,7 +30,7 @@ interface MetricsData {
   annualized_volatility_percentage: number;
   avg_win: number;
   avg_loss: number;
-  total_trades: number;
+  total_trades: number; // Note: This field is not used - we get total trades from the trades endpoint instead
   winning_trades: number;
   losing_trades: number;
   current_value: number;
@@ -95,33 +95,13 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const fetchTotalTrades = async () => {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/v1/team/${teamId}/trades?key=${apiKey}&limit=1`,
-        {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-          cache: 'no-store',
-          mode: 'cors',
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setTotalTrades(data.count || 0);
-      }
-    } catch (e: any) {
-      console.error('Failed to fetch total trades:', e);
-    }
-  };
 
   const fetchMetrics = async () => {
     setError(null);
     try {
       console.log(`Fetching metrics for team: ${teamId}`);
       
-      // Fetch both metrics and total trades in parallel
+      // Fetch metrics and total trades count from trades endpoint in parallel
       const [metricsResponse, tradesResponse] = await Promise.all([
         fetch(`${API_BASE_URL}/api/v1/team/${teamId}/metrics?key=${apiKey}`, {
           method: 'GET',
@@ -129,7 +109,7 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
           cache: 'no-store',
           mode: 'cors',
         }),
-        fetch(`${API_BASE_URL}/api/v1/team/${teamId}/trades?key=${apiKey}`, {
+        fetch(`${API_BASE_URL}/api/v1/team/${teamId}/trades?key=${apiKey}&limit=1000`, {
           method: 'GET',
           headers: { Accept: 'application/json' },
           cache: 'no-store',
@@ -147,12 +127,6 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
 
       if (tradesResponse.ok) {
         const tradesData = await tradesResponse.json();
-        console.log(`TeamMetrics: Trades API response for team ${teamId}:`, {
-          count: tradesData.count,
-          actualTrades: tradesData.trades?.length || 0,
-          teamId: tradesData.team_id,
-          firstTradeTeamId: tradesData.trades?.[0]?.team_id
-        });
         
         // Filter trades to ensure they belong to the correct team (same logic as TradesTable)
         const filteredTrades = (tradesData.trades || []).filter((trade: any) => trade.team_id === teamId);
@@ -161,7 +135,7 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
         const actualTradeCount = filteredTrades.length;
         setTotalTrades(actualTradeCount);
         
-        console.log(`TeamMetrics: Using ${actualTradeCount} trades for team ${teamId}`);
+        console.log(`TeamMetrics: Using ${actualTradeCount} trades for team ${teamId} (from trades endpoint)`);
         
         if (filteredTrades.length !== (tradesData.trades || []).length) {
           console.warn(`TeamMetrics: Filtered out ${(tradesData.trades || []).length - filteredTrades.length} trades for wrong team`);
@@ -169,6 +143,8 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
       } else {
         const errorData = await tradesResponse.json().catch(() => ({}));
         console.error('TeamMetrics: Trades API error:', errorData);
+        // Set total trades to 0 if trades endpoint fails
+        setTotalTrades(0);
       }
 
       setLastUpdated(new Date());
@@ -213,12 +189,7 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
 
   if (!metrics) return null;
 
-  const safeInteger = (value: number | null | undefined, fallback = 0) =>
-    typeof value === "number" && Number.isFinite(value) ? value : fallback;
-
-  const totalTrades = safeInteger(metrics.total_trades);
-  const winningTrades = safeInteger(metrics.winning_trades);
-  const losingTrades = safeInteger(metrics.losing_trades);
+  // Note: totalTrades is now fetched from the trades endpoint, not from metrics
 
   const metricCards = [
     {
