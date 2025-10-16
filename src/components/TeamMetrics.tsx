@@ -15,18 +15,28 @@ const POLL_MS = 60_000; // Auto-refresh every 60 seconds
 // TYPES
 // ----------------------------------------------------------------------------
 interface MetricsData {
+  sharpe_ratio: number;
+  sortino_ratio: number;
+  calmar_ratio: number;
+  max_drawdown: number;
+  max_drawdown_percentage: number;
+  current_drawdown: number;
+  current_drawdown_percentage: number;
+  total_return: number;
+  total_return_percentage: number;
+  annualized_return: number;
+  annualized_return_percentage: number;
+  annualized_volatility: number;
+  annualized_volatility_percentage: number;
+  avg_win: number;
+  avg_loss: number;
   total_trades: number;
   winning_trades: number;
   losing_trades: number;
-  win_rate_percentage: number;
-  total_return_percentage: number;
-  sharpe_ratio: number;
-  sortino_ratio: number;
-  max_drawdown_percentage: number;
-  avg_win_percentage: number;
-  avg_loss_percentage: number;
-  profit_factor: number;
   current_value: number;
+  starting_value: number;
+  peak_value: number;
+  trough_value: number;
 }
 
 interface Props {
@@ -45,15 +55,15 @@ const formatNumber = (n: number | null | undefined, decimals: number = 2, fallba
   return n.toFixed(decimals);
 };
 
-const formatUSD = (n: number | null | undefined, fallback: number = 10000) => {
-  if (n === null || n === undefined || Number.isNaN(n)) {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(fallback);
+const formatUSD = (n: number | null | undefined) => {
+  if (n === null || n === undefined || Number.isNaN(n)) return "N/A";
+  
+  if (Math.abs(n) >= 1e6) {
+    return `$${(n / 1e6).toFixed(2)}M`;
+  } else if (Math.abs(n) >= 1e3) {
+    return `$${(n / 1e3).toFixed(1)}k`;
   }
+  
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -177,7 +187,6 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
     {
       label: "Total Trades",
       value: metrics.total_trades.toString(),
-      subtitle: `${metrics.winning_trades}W / ${metrics.losing_trades}L`,
       category: "activity",
     },
   ];
