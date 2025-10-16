@@ -90,15 +90,15 @@ const formatApiError = (errorData: any): string => {
 // ----------------------------------------------------------------------------
 export default function TeamMetrics({ teamId, apiKey }: Props) {
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
+  const [totalTrades, setTotalTrades] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const fetchMetrics = async () => {
-    setError(null);
+  const fetchTotalTrades = async () => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/v1/team/${teamId}/metrics?key=${apiKey}`,
+        `${API_BASE_URL}/api/v1/team/${teamId}/trades?key=${apiKey}&limit=1`,
         {
           method: 'GET',
           headers: { Accept: 'application/json' },
@@ -109,12 +109,46 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
 
       if (response.ok) {
         const data = await response.json();
+        setTotalTrades(data.count || 0);
+      }
+    } catch (e: any) {
+      console.error('Failed to fetch total trades:', e);
+    }
+  };
+
+  const fetchMetrics = async () => {
+    setError(null);
+    try {
+      // Fetch both metrics and total trades in parallel
+      const [metricsResponse, tradesResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/v1/team/${teamId}/metrics?key=${apiKey}`, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+          mode: 'cors',
+        }),
+        fetch(`${API_BASE_URL}/api/v1/team/${teamId}/trades?key=${apiKey}&limit=1`, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+          mode: 'cors',
+        })
+      ]);
+
+      if (metricsResponse.ok) {
+        const data = await metricsResponse.json();
         setMetrics(data.metrics);
-        setLastUpdated(new Date());
       } else {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await metricsResponse.json().catch(() => ({}));
         setError(formatApiError(errorData));
       }
+
+      if (tradesResponse.ok) {
+        const tradesData = await tradesResponse.json();
+        setTotalTrades(tradesData.count || 0);
+      }
+
+      setLastUpdated(new Date());
     } catch (e: any) {
       setError(e?.message || "Network error");
     } finally {
@@ -193,7 +227,7 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
     },
     {
       label: "Total Trades",
-      value: metrics.total_trades.toString(),
+      value: totalTrades.toString(),
       category: "activity",
     },
   ];
