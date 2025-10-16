@@ -61,6 +61,22 @@ const calculateSlippage = (trade: Trade): number => {
   return executionPrice - requestedPrice;
 };
 
+const getSlippageColor = (trade: Trade): string => {
+  const slippage = calculateSlippage(trade);
+  
+  if (slippage === 0) return "text-[#808080]"; // Gray for no slippage
+  
+  if (trade.side === "buy") {
+    // For BUY orders: positive slippage (higher execution price) = bad = red
+    // negative slippage (lower execution price) = good = green
+    return slippage > 0 ? "text-[#FF0000]" : "text-[#00C805]";
+  } else {
+    // For SELL orders: positive slippage (higher execution price) = good = green
+    // negative slippage (lower execution price) = bad = red
+    return slippage > 0 ? "text-[#00C805]" : "text-[#FF0000]";
+  }
+};
+
 const calculateTotalValue = (trade: Trade): number => {
   const executionPrice = parseTradeNumber(trade.execution_price);
   const quantity = parseTradeNumber(trade.quantity);
@@ -260,11 +276,7 @@ export default function TradesTable({ teamId, apiKey }: Props) {
                           {formatUSD(parseTradeNumber(trade.execution_price))}
                         </td>
                         <td className="px-4 py-3 text-right text-sm font-mono">
-                          <span className={classNames(
-                            calculateSlippage(trade) > 0 ? "text-[#00C805]" : 
-                            calculateSlippage(trade) < 0 ? "text-[#FF0000]" : 
-                            "text-[#808080]"
-                          )}>
+                          <span className={getSlippageColor(trade)}>
                             {calculateSlippage(trade) > 0 ? "+" : ""}{formatUSD(calculateSlippage(trade))}
                           </span>
                         </td>
