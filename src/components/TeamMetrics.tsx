@@ -147,27 +147,28 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
 
       if (tradesResponse.ok) {
         const tradesData = await tradesResponse.json();
-        console.log(`Trades API response for team ${teamId}:`, {
+        console.log(`TeamMetrics: Trades API response for team ${teamId}:`, {
           count: tradesData.count,
           actualTrades: tradesData.trades?.length || 0,
           teamId: tradesData.team_id,
           firstTradeTeamId: tradesData.trades?.[0]?.team_id
         });
         
-        // Use the actual count of trades returned, not the API-reported count
-        const actualTradeCount = tradesData.trades?.length || 0;
+        // Filter trades to ensure they belong to the correct team (same logic as TradesTable)
+        const filteredTrades = (tradesData.trades || []).filter((trade: any) => trade.team_id === teamId);
+        
+        // Use the actual count of filtered trades (same logic as TradesTable)
+        const actualTradeCount = filteredTrades.length;
         setTotalTrades(actualTradeCount);
         
-        // Verify all trades belong to the correct team
-        if (tradesData.trades && tradesData.trades.length > 0) {
-          const wrongTeamTrades = tradesData.trades.filter((trade: any) => trade.team_id !== teamId);
-          if (wrongTeamTrades.length > 0) {
-            console.warn(`Found ${wrongTeamTrades.length} trades for wrong team in response for team ${teamId}`);
-          }
+        console.log(`TeamMetrics: Using ${actualTradeCount} trades for team ${teamId}`);
+        
+        if (filteredTrades.length !== (tradesData.trades || []).length) {
+          console.warn(`TeamMetrics: Filtered out ${(tradesData.trades || []).length - filteredTrades.length} trades for wrong team`);
         }
       } else {
         const errorData = await tradesResponse.json().catch(() => ({}));
-        console.error('Trades API error:', errorData);
+        console.error('TeamMetrics: Trades API error:', errorData);
       }
 
       setLastUpdated(new Date());
