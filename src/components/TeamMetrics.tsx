@@ -146,6 +146,13 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
 
   if (!metrics) return null;
 
+  const safeInteger = (value: number | null | undefined, fallback = 0) =>
+    typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
+  const totalTrades = safeInteger(metrics.total_trades);
+  const winningTrades = safeInteger(metrics.winning_trades);
+  const losingTrades = safeInteger(metrics.losing_trades);
+
   const metricCards = [
     {
       label: "Portfolio Value",
@@ -176,8 +183,8 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
     },
     {
       label: "Total Trades",
-      value: metrics.total_trades.toString(),
-      subtitle: `${metrics.winning_trades}W / ${metrics.losing_trades}L`,
+      value: totalTrades.toLocaleString("en-US"),
+      subtitle: `${winningTrades}W / ${losingTrades}L`,
       category: "activity",
     },
   ];
