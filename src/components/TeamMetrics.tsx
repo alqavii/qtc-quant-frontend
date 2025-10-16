@@ -29,13 +29,6 @@ interface MetricsData {
   current_value: number;
 }
 
-interface PortfolioSnapshot {
-  timestamp: string;
-  total_value: number;
-  cash: number;
-  positions: { [symbol: string]: number };
-}
-
 interface Props {
   teamId: string;
   apiKey: string;
@@ -87,7 +80,6 @@ const formatApiError = (errorData: any): string => {
 // ----------------------------------------------------------------------------
 export default function TeamMetrics({ teamId, apiKey }: Props) {
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
-  const [currentPortfolioValue, setCurrentPortfolioValue] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -95,45 +87,22 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
   const fetchMetrics = async () => {
     setError(null);
     try {
-      // Fetch both metrics and portfolio history in parallel
-      const [metricsResponse, portfolioResponse] = await Promise.all([
-        fetch(
-          `${API_BASE_URL}/api/v1/team/${teamId}/metrics?key=${apiKey}`,
-          {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            cache: 'no-store',
-            mode: 'cors',
-          }
-        ),
-        fetch(
-          `${API_BASE_URL}/api/v1/team/${teamId}/portfolio-history?key=${apiKey}&days=1&limit=1`,
-          {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            cache: 'no-store',
-            mode: 'cors',
-          }
-        )
-      ]);
-
-      if (metricsResponse.ok && portfolioResponse.ok) {
-        const [metricsData, portfolioData] = await Promise.all([
-          metricsResponse.json(),
-          portfolioResponse.json()
-        ]);
-        
-        setMetrics(metricsData.metrics);
-        
-        // Use the most recent portfolio value from portfolio history
-        const snapshots = portfolioData.snapshots || [];
-        if (snapshots.length > 0) {
-          setCurrentPortfolioValue(snapshots[snapshots.length - 1].total_value);
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/team/${teamId}/metrics?key=${apiKey}`,
+        {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+          mode: 'cors',
         }
-        
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setMetrics(data.metrics);
         setLastUpdated(new Date());
       } else {
-        const errorData = await metricsResponse.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({}));
         setError(formatApiError(errorData));
       }
     } catch (e: any) {
@@ -187,7 +156,7 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
   const metricCards = [
     {
       label: "Portfolio Value",
-      value: formatUSD(currentPortfolioValue),
+      value: formatUSD(metrics.current_value),
       change: metrics.total_return_percentage,
       category: "primary",
     },
