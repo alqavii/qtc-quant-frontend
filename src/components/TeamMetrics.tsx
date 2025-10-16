@@ -238,11 +238,6 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
                       {metric.value}
                     </div>
                   </div>
-                  {metric.subtitle && (
-                    <div className="text-[10px] text-[#808080] font-mono mt-auto">
-                      {metric.subtitle}
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </motion.div>
