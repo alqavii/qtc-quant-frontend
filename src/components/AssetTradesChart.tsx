@@ -147,7 +147,6 @@ export default function AssetTradesChart({ teamId, apiKey }: Props) {
     const transformedData = Object.entries(buckets)
       .map(([key, value]) => ({
         time: key,
-        timestamp: value.timestamp,
         ...value
       }))
       .sort((a, b) => a.timestamp - b.timestamp);
@@ -240,7 +239,7 @@ export default function AssetTradesChart({ teamId, apiKey }: Props) {
                 stroke="#808080"
                 tick={{ fill: "#808080", fontSize: 10, fontFamily: 'monospace' }}
                 tickLine={{ stroke: "#333333" }}
-                tickFormatter={(value) => Math.round(value).toString()}
+                tickFormatter={(value) => Math.round(value || 0).toString()}
               />
               <Tooltip
                 contentStyle={{
@@ -253,7 +252,7 @@ export default function AssetTradesChart({ teamId, apiKey }: Props) {
                 }}
                 labelStyle={{ color: "#00A0E8", marginBottom: "4px", fontSize: '10px' }}
                 itemStyle={{ color: "#CCCCCC", padding: "2px 0", fontSize: '11px' }}
-                formatter={(value: any, name: string) => [Math.round(value), `${name} trades`]}
+                formatter={(value: any, name: string) => [Math.round(value || 0), `${name} trades`]}
                 labelFormatter={(timestamp) => {
                   const date = new Date(timestamp);
                   return date.toLocaleString('en-US', {
