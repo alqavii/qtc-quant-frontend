@@ -125,8 +125,10 @@ export default function TradesTable({ teamId, apiKey }: Props) {
   const fetchData = async () => {
     setError(null);
     try {
+      console.log(`TradesTable: Fetching trades for team: ${teamId}`);
+      
       const response = await fetch(
-        `${API_BASE_URL}/api/v1/team/${teamId}/trades?key=${apiKey}&limit=1000`,
+        `${API_BASE_URL}/api/v1/team/${teamId}/trades?key=${apiKey}`,
         {
           method: 'GET',
           headers: { Accept: 'application/json' },
@@ -137,9 +139,23 @@ export default function TradesTable({ teamId, apiKey }: Props) {
 
       if (response.ok) {
         const result = await response.json();
-        setTrades(result.trades || []);
-        setTotalTrades(result.count || 0);
+        console.log(`TradesTable: API response for team ${teamId}:`, {
+          count: result.count,
+          actualTrades: result.trades?.length || 0,
+          teamId: result.team_id,
+          firstTradeTeamId: result.trades?.[0]?.team_id
+        });
+        
+        // Filter trades to ensure they belong to the correct team
+        const filteredTrades = (result.trades || []).filter((trade: Trade) => trade.team_id === teamId);
+        
+        setTrades(filteredTrades);
+        setTotalTrades(filteredTrades.length); // Use actual count of filtered trades
         setLastUpdated(new Date());
+        
+        if (filteredTrades.length !== (result.trades || []).length) {
+          console.warn(`TradesTable: Filtered out ${(result.trades || []).length - filteredTrades.length} trades for wrong team`);
+        }
       } else {
         const errorData = await response.json().catch(() => ({}));
         setError(formatApiError(errorData));

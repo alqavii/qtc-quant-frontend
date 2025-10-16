@@ -119,6 +119,8 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
   const fetchMetrics = async () => {
     setError(null);
     try {
+      console.log(`Fetching metrics for team: ${teamId}`);
+      
       // Fetch both metrics and total trades in parallel
       const [metricsResponse, tradesResponse] = await Promise.all([
         fetch(`${API_BASE_URL}/api/v1/team/${teamId}/metrics?key=${apiKey}`, {
@@ -127,7 +129,7 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
           cache: 'no-store',
           mode: 'cors',
         }),
-        fetch(`${API_BASE_URL}/api/v1/team/${teamId}/trades?key=${apiKey}&limit=1`, {
+        fetch(`${API_BASE_URL}/api/v1/team/${teamId}/trades?key=${apiKey}`, {
           method: 'GET',
           headers: { Accept: 'application/json' },
           cache: 'no-store',
@@ -145,7 +147,27 @@ export default function TeamMetrics({ teamId, apiKey }: Props) {
 
       if (tradesResponse.ok) {
         const tradesData = await tradesResponse.json();
-        setTotalTrades(tradesData.count || 0);
+        console.log(`Trades API response for team ${teamId}:`, {
+          count: tradesData.count,
+          actualTrades: tradesData.trades?.length || 0,
+          teamId: tradesData.team_id,
+          firstTradeTeamId: tradesData.trades?.[0]?.team_id
+        });
+        
+        // Use the actual count of trades returned, not the API-reported count
+        const actualTradeCount = tradesData.trades?.length || 0;
+        setTotalTrades(actualTradeCount);
+        
+        // Verify all trades belong to the correct team
+        if (tradesData.trades && tradesData.trades.length > 0) {
+          const wrongTeamTrades = tradesData.trades.filter((trade: any) => trade.team_id !== teamId);
+          if (wrongTeamTrades.length > 0) {
+            console.warn(`Found ${wrongTeamTrades.length} trades for wrong team in response for team ${teamId}`);
+          }
+        }
+      } else {
+        const errorData = await tradesResponse.json().catch(() => ({}));
+        console.error('Trades API error:', errorData);
       }
 
       setLastUpdated(new Date());
