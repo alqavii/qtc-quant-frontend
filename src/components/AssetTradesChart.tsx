@@ -147,7 +147,6 @@ export default function AssetTradesChart({ teamId, apiKey }: Props) {
     const transformedData = Object.entries(buckets)
       .map(([key, value]) => ({
         time: key,
-        timestamp: value.timestamp,
         ...value
       }))
       .sort((a, b) => a.timestamp - b.timestamp);
